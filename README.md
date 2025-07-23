@@ -39,7 +39,7 @@ cp composer.json composer.json.backup
 
 *Từ GitLab/GitHub (Production):*
 ```bash
-composer config repositories.my-sample-plugin vcs https://gitlab.com/sointech/my-sample-plugin.git
+composer config repositories.my-sample-plugin vcs https://gitlab.com/NghiaDinh115/my-sample-plugin.git
 ```
 
 *Từ Local (Development):*
@@ -151,7 +151,7 @@ cd /Applications/XAMPP/xamppfiles/htdocs/your-wordpress-site
 cp composer.json composer.json.backup
 
 # 3. Thêm repository GitLab
-composer config repositories.my-sample-plugin vcs https://gitlab.com/sointech/my-sample-plugin.git
+composer config repositories.my-sample-plugin vcs https://gitlab.com/NghiaDinh115/my-sample-plugin.git
 
 # 4. Cài đặt plugin (production)
 composer require sointech/my-sample-plugin:^1.0
@@ -167,7 +167,7 @@ ls -la wordpress/wp-content/plugins/my-sample-plugin
 
 ```bash
 # 1. Clone plugin về local
-git clone https://gitlab.com/sointech/my-sample-plugin.git /path/to/local/plugin
+git clone https://gitlab.com/NghiaDinh115/my-sample-plugin.git /path/to/local/plugin
 
 # 2. Trong WordPress site
 cd /path/to/wordpress-site
@@ -204,7 +204,7 @@ Sau khi cài đặt và kích hoạt plugin:
 
 ```bash
 # Clone repository
-git clone https://gitlab.com/sointech/my-sample-plugin.git
+git clone https://gitlab.com/NghiaDinh115/my-sample-plugin.git
 
 # Cài đặt dependencies
 composer install
@@ -295,8 +295,8 @@ GPL v2 or later. Xem [LICENSE](LICENSE) để biết thêm chi tiết.
 
 ## Support
 
-- [GitLab Issues](https://gitlab.com/sointech/my-sample-plugin/-/issues)
-- [Documentation](https://gitlab.com/sointech/my-sample-plugin/-/wikis/home)
+- [GitLab Issues](https://gitlab.com/NghiaDinh115/my-sample-plugin/-/issues)
+- [Documentation](https://gitlab.com/NghiaDinh115/my-sample-plugin/-/wikis/home)
 - Email: contact@sointech.com
 - Website: https://sointech.sointech.dev
 

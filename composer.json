@@ -5,7 +5,7 @@
     "license": "GPL-2.0-or-later",
     "version": "1.0.0",
     "keywords": ["wordpress", "plugin", "sample", "reusable"],
-    "homepage": "https://github.com/sointech/my-sample-plugin",
+    "homepage": "https://gitlab.com/NghiaDinh115/my-sample-plugin",
     "authors": [
         {
             "name": "Sointech",
@@ -14,8 +14,8 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/sointech/my-sample-plugin/issues",
-        "source": "https://github.com/sointech/my-sample-plugin"
+        "issues": "https://gitlab.com/NghiaDinh115/my-sample-plugin/-/issues",
+        "source": "https://gitlab.com/NghiaDinh115/my-sample-plugin"
     },
     "require": {
         "php": ">=7.4",
