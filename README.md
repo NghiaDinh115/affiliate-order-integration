@@ -51,7 +51,7 @@ composer config repositories.my-sample-plugin path /path/to/local/plugin
 
 *Từ GitLab/GitHub:*
 ```bash
-composer require sointech/my-sample-plugin:^1.0
+composer require sointech/my-sample-plugin:dev-main
 ```
 
 *Từ Local:*
@@ -134,7 +134,7 @@ composer remove sointech/my-sample-plugin
 
 1. **Backup**: Luôn backup website trước khi cài đặt plugin mới
 2. **Test**: Test trên staging environment trước khi deploy production
-3. **Version**: Sử dụng version cụ thể cho production (^1.0 thay vì @dev)
+3. **Version**: Hiện tại sử dụng dev-main, sẽ có version stable sau
 4. **Permissions**: Đảm bảo server có quyền ghi file
 5. **Dependencies**: Kiểm tra PHP version và WordPress compatibility
 6. **Security**: Plugin chỉ thêm vào wp-content/plugins/, không ảnh hưởng core WordPress
@@ -153,8 +153,8 @@ cp composer.json composer.json.backup
 # 3. Thêm repository GitLab
 composer config repositories.my-sample-plugin vcs https://gitlab.com/NghiaDinh115/my-sample-plugin.git
 
-# 4. Cài đặt plugin (production)
-composer require sointech/my-sample-plugin:^1.0
+# 4. Cài đặt plugin (hiện tại dùng dev-main)
+composer require sointech/my-sample-plugin:dev-main
 
 # 5. Kiểm tra plugin đã được cài
 ls -la wordpress/wp-content/plugins/my-sample-plugin
