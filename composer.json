@@ -1,0 +1,70 @@
+{
+    "name": "sointech/my-sample-plugin",
+    "description": "A sample WordPress plugin that provides useful features and can be installed via Composer.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "version": "1.0.0",
+    "keywords": ["wordpress", "plugin", "sample", "reusable"],
+    "homepage": "https://github.com/sointech/my-sample-plugin",
+    "authors": [
+        {
+            "name": "Sointech",
+            "email": "contact@sointech.com",
+            "homepage": "https://sointech.sointech.dev"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/sointech/my-sample-plugin/issues",
+        "source": "https://github.com/sointech/my-sample-plugin"
+    },
+    "require": {
+        "php": ">=7.4",
+        "composer/installers": "^1.0 || ^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "wp-coding-standards/wpcs": "*",
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.7",
+        "php-parallel-lint/php-parallel-lint": "^1.0",
+        "squizlabs/php_codesniffer": "^3.7",
+        "php-stubs/wordpress-stubs": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "MySamplePlugin\\": "includes/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MySamplePlugin\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs": "phpcs",
+        "cbf": "phpcbf",
+        "install-codestandards": [
+            "Dealerdirect\\Composer\\Plugin\\Installers\\PHPCodeSniffer\\Plugin::run"
+        ],
+        "post-install-cmd": [
+            "@install-codestandards"
+        ],
+        "post-update-cmd": [
+            "@install-codestandards"
+        ],
+        "test:unit": "phpunit --testsuite=unit",
+        "test:integration": "phpunit --testsuite=integration",
+        "test:coverage": "phpunit --coverage-html coverage/",
+        "lint": "parallel-lint --exclude vendor .",
+        "setup-dev": "bash scripts/setup-dev.sh",
+        "build": "bash scripts/build.sh"
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
