@@ -148,46 +148,233 @@ composer remove sointech/affiliate-order-integration
 6. **Permissions**: Đảm bảo server có quyền ghi file và tạo database table
 7. **SSL**: Khuyến nghị sử dụng HTTPS cho API calls bảo mật
 
-## 🎯 Ví dụ hoàn chỉnh
+## 🎯 Hướng dẫn cài đặt chi tiết
 
-### Cài đặt trên website có sẵn WooCommerce:
+### **Cách 1: Cài đặt trên website WordPress có sẵn**
 
 ```bash
-# 1. Di chuyển đến thư mục WordPress
-cd /Applications/XAMPP/xamppfiles/htdocs/your-wordpress-site
+# 1. Di chuyển đến thư mục WordPress root
+cd /path/to/your-wordpress-site
 
-# 2. Backup (nếu đã có composer.json)
+# 2. Backup composer.json (nếu có)
 cp composer.json composer.json.backup
 
-# 3. Thêm repository GitHub
+# 3. Thêm repository plugin
 composer config repositories.affiliate-order-integration vcs https://github.com/NghiaDinh115/affiliate-order-integration.git
 
-# 4. Cài đặt plugin (hiện tại dùng dev-main)
+# 4. Cài đặt composer/installers (nếu chưa có)
+composer require "composer/installers:^1.0"
+
+# 5. Cài đặt plugin
 composer require sointech/affiliate-order-integration:dev-main
 
-# 5. Kiểm tra plugin đã được cài
-ls -la wordpress/wp-content/plugins/affiliate-order-integration
+# 6. Xác minh plugin đã được cài
+ls -la wp-content/plugins/affiliate-order-integration/
 
-# 6. Vào WordPress Admin để kích hoạt
-# Admin → Plugins → Affiliate Order Integration → Activate
+# 7. Vào WordPress Admin kích hoạt
+# Admin → Plugins → "Affiliate Order Integration" → Activate
 ```
 
-### Cài đặt để development:
+### **Cách 2: Cài đặt cho website WordPress mới**
 
 ```bash
-# 1. Clone plugin về local
+# 1. Tạo composer.json cho WordPress site
+composer init --name="your-company/wordpress-site" --no-interaction
+
+# 2. Thêm WordPress repositories
+composer config repositories.wordpress composer https://wpackagist.org
+composer config repositories.affiliate-order-integration vcs https://github.com/NghiaDinh115/affiliate-order-integration.git
+
+# 3. Cài đặt WordPress core và dependencies
+composer require johnpbloch/wordpress:^6.8
+composer require composer/installers:^1.0
+composer require wpackagist-plugin/woocommerce:^8.0
+
+# 4. Cài đặt plugin
+composer require sointech/affiliate-order-integration:dev-main
+
+# 5. Cấu hình installer paths trong composer.json
+# (Xem mẫu composer.json bên dưới)
+
+# 6. Setup WordPress và kích hoạt WooCommerce
+# 7. Kích hoạt Affiliate Order Integration
+```
+
+### **Cách 3: Download và cài thủ công**
+
+```bash
+# Option A: Clone repository
+git clone https://github.com/NghiaDinh115/affiliate-order-integration.git
+
+# Option B: Download ZIP từ GitHub  
+wget https://github.com/NghiaDinh115/affiliate-order-integration/archive/refs/heads/main.zip
+unzip main.zip
+
+# Copy vào wp-content/plugins/
+cp -r affiliate-order-integration /path/to/wordpress/wp-content/plugins/
+
+# Set permissions  
+chmod -R 755 /path/to/wordpress/wp-content/plugins/affiliate-order-integration
+```
+
+### **Development Setup**
+
+```bash
+# 1. Clone plugin repository
 git clone https://github.com/NghiaDinh115/affiliate-order-integration.git /path/to/local/plugin
 
-# 2. Trong WordPress site
+# 2. Trong WordPress site, link local plugin
 cd /path/to/wordpress-site
-
-# 3. Link local plugin
 composer config repositories.affiliate-order-integration path /path/to/local/plugin
 
-# 4. Cài đặt development version
+# 3. Cài đặt development version
 composer require sointech/affiliate-order-integration:@dev
 
-# 5. Plugin sẽ được symlink, thay đổi ở local sẽ reflect ngay
+# 4. Plugin sẽ được symlink - thay đổi local sẽ reflect ngay
+```
+
+## 🔧 **Template composer.json hoàn chỉnh**
+
+Để cài đặt plugin trên website WordPress mới, sử dụng template này:
+
+```json
+{
+    "name": "your-company/wordpress-site",
+    "type": "project",
+    "repositories": [
+        {
+            "type": "composer", 
+            "url": "https://wpackagist.org"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/NghiaDinh115/affiliate-order-integration.git"
+        }
+    ],
+    "require": {
+        "composer/installers": "^1.12",
+        "johnpbloch/wordpress": "^6.8",
+        "wpackagist-plugin/woocommerce": "^8.0",
+        "sointech/affiliate-order-integration": "dev-main"
+    },
+    "extra": {
+        "wordpress-install-dir": "wordpress",
+        "installer-paths": {
+            "wordpress/wp-content/plugins/{$name}/": [
+                "type:wordpress-plugin"
+            ],
+            "wordpress/wp-content/themes/{$name}/": [
+                "type:wordpress-theme"
+            ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "johnpbloch/wordpress-core-installer": true,
+            "composer/installers": true
+        }
+    }
+}
+```
+
+## 💻 **Ví dụ cài đặt cho các môi trường**
+
+### **XAMPP/WAMP (Local Development)**
+
+```bash
+# 1. Vào thư mục XAMPP htdocs
+cd /Applications/XAMPP/xamppfiles/htdocs/your-wordpress-site
+# Windows: cd C:\xampp\htdocs\your-wordpress-site
+
+# 2. Cài đặt plugin qua Composer
+composer config repositories.affiliate-order-integration vcs https://github.com/NghiaDinh115/affiliate-order-integration.git
+composer require "composer/installers:^1.0"
+composer require sointech/affiliate-order-integration:dev-main
+
+# 3. Hoặc download thủ công
+wget https://github.com/NghiaDinh115/affiliate-order-integration/archive/refs/heads/main.zip
+unzip main.zip
+mv affiliate-order-integration-main wp-content/plugins/affiliate-order-integration
+
+# 4. Truy cập http://localhost/your-wordpress-site/wp-admin
+# 5. Plugins → Activate "Affiliate Order Integration"
+```
+
+### **VPS/Dedicated Server (Production)**
+
+```bash
+# 1. SSH vào server
+ssh user@your-server.com
+
+# 2. Backup trước khi cài
+cd /var/www/html  # hoặc /home/user/public_html
+tar -czf backup-$(date +%Y%m%d).tar.gz wp-content/
+
+# 3. Cài qua Composer (khuyến nghị)
+composer config repositories.affiliate-order-integration vcs https://github.com/NghiaDinh115/affiliate-order-integration.git
+composer require sointech/affiliate-order-integration:dev-main
+
+# 4. Hoặc download manual
+wget https://github.com/NghiaDinh115/affiliate-order-integration/archive/refs/heads/main.zip
+unzip main.zip
+mv affiliate-order-integration-main wp-content/plugins/affiliate-order-integration
+
+# 5. Set correct permissions
+chown -R www-data:www-data wp-content/plugins/affiliate-order-integration
+chmod -R 755 wp-content/plugins/affiliate-order-integration
+
+# 6. Kích hoạt qua WordPress Admin
+```
+
+### **Shared Hosting (cPanel/FTP)**
+
+```bash
+# 1. Download plugin về máy local
+curl -L -o affiliate-order-integration.zip https://github.com/NghiaDinh115/affiliate-order-integration/archive/refs/heads/main.zip
+
+# 2. Giải nén
+unzip affiliate-order-integration.zip
+
+# 3. Upload qua FTP/cPanel File Manager
+# - Vào public_html/wp-content/plugins/
+# - Upload thư mục affiliate-order-integration-main
+# - Rename thành affiliate-order-integration
+
+# 4. Kích hoạt trong WordPress Admin
+```
+
+### **Docker WordPress**
+
+Thêm vào `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+services:
+  wordpress:
+    image: wordpress:latest
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+      - ./composer.json:/var/www/html/composer.json
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+```
+
+Sau đó:
+
+```bash
+# 1. Vào container
+docker exec -it wordpress_container_name bash
+
+# 2. Cài Composer (nếu chưa có)
+curl -sS https://getcomposer.org/installer | php
+mv composer.phar /usr/local/bin/composer
+
+# 3. Cài plugin
+composer config repositories.affiliate-order-integration vcs https://github.com/NghiaDinh115/affiliate-order-integration.git
+composer require sointech/affiliate-order-integration:dev-main
 ```
 
 ## Cấu hình
