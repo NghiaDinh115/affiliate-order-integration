@@ -39,7 +39,7 @@ cp composer.json composer.json.backup
 
 *Từ GitLab/GitHub (Production):*
 ```bash
-composer config repositories.my-sample-plugin vcs https://gitlab.com/NghiaDinh115/my-sample-plugin.git
+composer config repositories.my-sample-plugin vcs https://github.com/NghiaDinh115/my-sample-plugin.git
 ```
 
 *Từ Local (Development):*
@@ -150,8 +150,8 @@ cd /Applications/XAMPP/xamppfiles/htdocs/your-wordpress-site
 # 2. Backup (nếu đã có composer.json)
 cp composer.json composer.json.backup
 
-# 3. Thêm repository GitLab
-composer config repositories.my-sample-plugin vcs https://gitlab.com/NghiaDinh115/my-sample-plugin.git
+# 3. Thêm repository GitHub
+composer config repositories.my-sample-plugin vcs https://github.com/NghiaDinh115/my-sample-plugin.git
 
 # 4. Cài đặt plugin (hiện tại dùng dev-main)
 composer require sointech/my-sample-plugin:dev-main
@@ -167,7 +167,7 @@ ls -la wordpress/wp-content/plugins/my-sample-plugin
 
 ```bash
 # 1. Clone plugin về local
-git clone https://gitlab.com/NghiaDinh115/my-sample-plugin.git /path/to/local/plugin
+git clone https://github.com/NghiaDinh115/my-sample-plugin.git /path/to/local/plugin
 
 # 2. Trong WordPress site
 cd /path/to/wordpress-site
@@ -204,7 +204,7 @@ Sau khi cài đặt và kích hoạt plugin:
 
 ```bash
 # Clone repository
-git clone https://gitlab.com/NghiaDinh115/my-sample-plugin.git
+git clone https://github.com/NghiaDinh115/my-sample-plugin.git
 
 # Cài đặt dependencies
 composer install
@@ -272,11 +272,11 @@ my-sample-plugin/
 
 ## Đóng góp
 
-1. Fork repository trên GitLab
+1. Fork repository trên GitHub
 2. Tạo feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit changes (`git commit -m 'Add some amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
-5. Tạo Merge Request
+5. Tạo Pull Request
 
 ## Changelog
 
@@ -295,8 +295,8 @@ GPL v2 or later. Xem [LICENSE](LICENSE) để biết thêm chi tiết.
 
 ## Support
 
-- [GitLab Issues](https://gitlab.com/NghiaDinh115/my-sample-plugin/-/issues)
-- [Documentation](https://gitlab.com/NghiaDinh115/my-sample-plugin/-/wikis/home)
+- [GitHub Issues](https://github.com/NghiaDinh115/my-sample-plugin/issues)
+- [Documentation](https://github.com/NghiaDinh115/my-sample-plugin/wiki)
 - Email: contact@sointech.com
 - Website: https://sointech.sointech.dev
 
