@@ -69,5 +69,11 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": {
+        "affiliate-order-integration": {
+            "type": "vcs",
+            "url": "https://github.com/NghiaDinh115/affiliate-order-integration.git"
+        }
+    }
 }
