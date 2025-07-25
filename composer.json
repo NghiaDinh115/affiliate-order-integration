@@ -1,10 +1,10 @@
 {
     "name": "sointech/my-sample-plugin",
-    "description": "A sample WordPress plugin that provides useful features and can be installed via Composer.",
+    "description": "WordPress plugin tích hợp gửi order đến website affiliate. Hỗ trợ đồng bộ đơn hàng WooCommerce với các affiliate network.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "version": "1.0.0",
-    "keywords": ["wordpress", "plugin", "sample", "reusable"],
+    "keywords": ["wordpress", "plugin", "affiliate", "order", "integration", "woocommerce"],
     "homepage": "https://github.com/NghiaDinh115/my-sample-plugin",
     "authors": [
         {
@@ -31,12 +31,15 @@
     },
     "autoload": {
         "psr-4": {
-            "MySamplePlugin\\": "includes/"
-        }
+            "AffiliateOrderIntegration\\": "includes/"
+        },
+        "classmap": [
+            "includes/"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
-            "MySamplePlugin\\Tests\\": "tests/"
+            "AffiliateOrderIntegration\\Tests\\": "tests/"
         }
     },
     "scripts": {

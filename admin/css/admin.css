@@ -1,0 +1,44 @@
+.aoi-admin-wrap .card {
+    max-width: none;
+    margin-top: 20px;
+}
+
+.aoi-admin-wrap .status-success {
+    color: #00a32a;
+    font-weight: bold;
+}
+
+.aoi-admin-wrap .status-error {
+    color: #d63638;
+    font-weight: bold;
+}
+
+.aoi-admin-wrap #test-result {
+    margin-top: 10px;
+}
+
+.aoi-admin-wrap #test-result .notice {
+    margin: 0;
+    padding: 8px 12px;
+}
+
+.aoi-logs-table .button-small {
+    padding: 2px 8px;
+    font-size: 11px;
+    height: auto;
+    line-height: 1.4;
+}
+
+.aoi-logs-table th,
+.aoi-logs-table td {
+    padding: 8px 10px;
+}
+
+.aoi-logs-table .order-id-link {
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.aoi-logs-table .order-id-link:hover {
+    text-decoration: underline;
+}
