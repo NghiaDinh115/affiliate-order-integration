@@ -1,11 +1,11 @@
 {
-    "name": "sointech/my-sample-plugin",
+    "name": "sointech/affiliate-order-integration",
     "description": "WordPress plugin tích hợp gửi order đến website affiliate. Hỗ trợ đồng bộ đơn hàng WooCommerce với các affiliate network.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "version": "1.0.0",
     "keywords": ["wordpress", "plugin", "affiliate", "order", "integration", "woocommerce"],
-    "homepage": "https://github.com/NghiaDinh115/my-sample-plugin",
+    "homepage": "https://github.com/NghiaDinh115/affiliate-order-integration",
     "authors": [
         {
             "name": "Sointech",
@@ -14,8 +14,8 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/NghiaDinh115/my-sample-plugin/issues",
-        "source": "https://github.com/NghiaDinh115/my-sample-plugin"
+        "issues": "https://github.com/NghiaDinh115/affiliate-order-integration/issues",
+        "source": "https://github.com/NghiaDinh115/affiliate-order-integration"
     },
     "require": {
         "php": ">=7.4",

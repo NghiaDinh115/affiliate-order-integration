@@ -2,7 +2,7 @@
 /**
  * PHPUnit bootstrap file
  *
- * @package MySamplePlugin
+ * @package AffiliateOrderIntegration
  */
 
 // Composer autoloader
@@ -13,7 +13,7 @@ if (file_exists('/tmp/wordpress-tests-lib/includes/functions.php')) {
     require_once '/tmp/wordpress-tests-lib/includes/functions.php';
     
     function _manually_load_plugin() {
-        require dirname(__DIR__) . '/my-sample-plugin.php';
+        require dirname(__DIR__) . '/affiliate-order-integration.php';
     }
     
     // Check if tests_add_filter function exists
@@ -51,7 +51,7 @@ if (file_exists('/tmp/wordpress-tests-lib/includes/functions.php')) {
     
     if (!function_exists('plugin_dir_url')) {
         function plugin_dir_url($file) {
-            return 'http://example.com/wp-content/plugins/my-sample-plugin/';
+            return 'http://example.com/wp-content/plugins/affiliate-order-integration/';
         }
     }
     
@@ -63,7 +63,7 @@ if (file_exists('/tmp/wordpress-tests-lib/includes/functions.php')) {
     
     if (!function_exists('plugin_basename')) {
         function plugin_basename($file) {
-            return 'my-sample-plugin/my-sample-plugin.php';
+            return 'affiliate-order-integration/affiliate-order-integration.php';
         }
     }
     
