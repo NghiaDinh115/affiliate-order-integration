@@ -51,14 +51,37 @@ class AOI_Admin {
 		add_action( 'wp_ajax_aoi_test_connection', array( $this, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_aoi_resend_order', array( $this, 'ajax_resend_order' ) );
 
-		// Thêm cột affiliate status vào danh sách đơn hàng WooCommerce
-		add_filter( ( 'manage_edit-shop_order_columns' ), array( $this, 'add_affiliate_column' ) );
-		add_filter( ( 'manage_shop_order_posts_custom_column' ), array( $this, 'affiliate_column_content' ) );
-		add_filter( ( 'shop_order_sortable_columns' ), array( $this, 'affiliate_column_sortable' ) );
+		// Thêm cột affiliate status vào danh sách đơn hàng WooCommerce (tương thích với COT và legacy)
+		$this->init_order_columns();
 
-		// Thêm meta box cho order edit page
+		// Thêm meta box cho order edit page (tương thích với COT và legacy)
+		$this->init_order_meta_box();
+	}
+
+	/**
+	 * Khởi tạo order columns tương thích với COT và legacy
+	 */
+	private function init_order_columns() {
+		// Sử dụng legacy hooks cho tất cả các trường hợp để tránh lỗi compatibility
+		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ) );
+		add_action( 'manage_shop_order_posts_custom_column', array( $this, 'affiliate_column_content' ), 10, 2 );
+		add_filter( 'manage_edit-shop_order_sortable_columns', array( $this, 'affiliate_column_sortable' ) );
+	}
+
+	/**
+	 * Khởi tạo order meta box tương thích với COT và legacy
+	 */
+	private function init_order_meta_box() {
+		// Meta box hooks work for both COT and legacy
 		add_action( 'add_meta_boxes', array( $this, 'add_affiliate_meta_box' ) );
+		
+		// Process meta for both COT and legacy
 		add_action( 'woocommerce_process_shop_order_meta', array( $this, 'save_affiliate_meta_box' ) );
+		
+		// COT specific hook if available
+		if ( class_exists( 'Automattic\WooCommerce\Utilities\OrderUtil' ) ) {
+			add_action( 'woocommerce_update_order', array( $this, 'save_affiliate_meta_box' ) );
+		}
 	}
 
 	/**
@@ -352,13 +375,32 @@ class AOI_Admin {
 	}
 
 	/**
+	 * Hiển thị nội dung cột affiliate status cho COT
+	 */
+	public function affiliate_column_content_cot( $column_name, $order ) {
+		if ( 'affiliate_status' !== $column_name ) {
+			return;
+		}
+
+		$order_id = is_object( $order ) ? $order->get_id() : $order;
+		$this->display_affiliate_status( $order_id );
+	}
+
+	/**
 	 * Hiển thị nội dung cột affiliate status
 	 */
 	public function affiliate_column_content( $column_name, $order_id ) {
 		if ( 'affiliate_status' !== $column_name ) {
 			return;
 		}
+		
+		$this->display_affiliate_status( $order_id );
+	}
 
+	/**
+	 * Hiển thị affiliate status (shared logic)
+	 */
+	private function display_affiliate_status( $order_id ) {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
 
@@ -373,8 +415,8 @@ class AOI_Admin {
 				echo '<br><button type="button" class="button button-small resend-order" data-order-id="' . esc_attr( $order_id ) . '">' . esc_html__( 'Resend', 'affiliate-order-integration' ) . '</button>';
 			}
 		} else {
-			// Kiểm tra có CTV token không
-			$ctv_token = get_post_meta( $order_id, '_aoi_ctv_token', true );
+			// Kiểm tra có CTV token không - tương thích với COT và legacy
+			$ctv_token = $this->get_order_meta( $order_id, '_aoi_ctv_token' );
 			if ( $ctv_token ) {
 				echo '<span style="color: #f0ad4e;">⏳ ' . esc_html__( 'Pending', 'affiliate-order-integration' ) . '</span>';
 				echo '<br><button type="button" class="button button-small resend-order" data-order-id="' . esc_attr( $order_id ) . '">' . esc_html__( 'Send Now', 'affiliate-order-integration' ) . '</button>';
@@ -383,9 +425,18 @@ class AOI_Admin {
 			}
 		}
 	}
-		/**
-		 * Làm cột Affiliate Status có thể sắp xếp
-		 */
+
+	/**
+	 * Helper method để lấy order meta tương thích với COT và legacy
+	 */
+	private function get_order_meta( $order_id, $meta_key ) {
+		// Sử dụng get_post_meta cho tất cả trường hợp để đảm bảo tương thích
+		return get_post_meta( $order_id, $meta_key, true );
+	}
+	
+	/**
+	 * Làm cột Affiliate Status có thể sắp xếp
+	 */
 	public function affiliate_column_sortable( $column ) {
 		$column['affiliate_status'] = 'affiliate_status';
 		return $column;
