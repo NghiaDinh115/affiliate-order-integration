@@ -97,7 +97,7 @@ class AffiliateOrderIntegration {
 			// Classes đã được autoload, không cần include thủ công
 			return;
 		}
-		
+
 		// Manual includes nếu không dùng Composer
 		require_once AOI_PLUGIN_PATH . 'includes/class-order-handler.php';
 		require_once AOI_PLUGIN_PATH . 'includes/class-affiliate-api.php';
@@ -124,10 +124,10 @@ class AffiliateOrderIntegration {
 	public function activate() {
 		$this->create_tables();
 		$this->create_default_options();
-		
+
 		// Tạo thư mục logs cho affiliate API
 		AOI_Affiliate_API::activate();
-		
+
 		flush_rewrite_rules();
 	}
 
@@ -176,7 +176,7 @@ class AffiliateOrderIntegration {
 			'order_status'     => 'completed',
 		);
 		add_option( 'aoi_options', $default_options );
-		
+
 		// Tạo app key option riêng
 		add_option( 'aff_app_key', '' );
 	}

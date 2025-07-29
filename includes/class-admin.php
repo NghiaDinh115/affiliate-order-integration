@@ -50,6 +50,15 @@ class AOI_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 		add_action( 'wp_ajax_aoi_test_connection', array( $this, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_aoi_resend_order', array( $this, 'ajax_resend_order' ) );
+
+		// Thêm cột affiliate status vào danh sách đơn hàng WooCommerce
+		add_filter( ( 'manage_edit-shop_order_columns' ), array( $this, 'add_affiliate_column' ) );
+		add_filter( ( 'manage_shop_order_posts_custom_column' ), array( $this, 'affiliate_column_content' ) );
+		add_filter( ( 'shop_order_sortable_columns' ), array( $this, 'affiliate_column_sortable' ) );
+
+		// Thêm meta box cho order edit page
+		add_action( 'add_meta_boxes', array( $this, 'add_affiliate_meta_box' ) );
+		add_action( 'woocommerce_process_shop_order_meta', array( $this, 'save_affiliate_meta_box' ) );
 	}
 
 	/**
@@ -134,7 +143,7 @@ class AOI_Admin {
 	 */
 	public function partner_id_callback() {
 		$options = get_option( 'aoi_options', array() );
-		$value = isset( $options['partner_id'] ) ? $options['partner_id'] : '1';
+		$value   = isset( $options['partner_id'] ) ? $options['partner_id'] : '1';
 		?>
 		<input type="number" id="partner_id" name="aoi_options[partner_id]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" min="1" />
 		<p class="description"><?php esc_html_e( 'Enter your partner ID in the affiliate system.', 'affiliate-order-integration' ); ?></p>
@@ -157,7 +166,7 @@ class AOI_Admin {
 	 */
 	public function auto_send_orders_callback() {
 		$options = get_option( 'aoi_options', array() );
-		$value = isset( $options['auto_send_orders'] ) ? $options['auto_send_orders'] : '1';
+		$value   = isset( $options['auto_send_orders'] ) ? $options['auto_send_orders'] : '1';
 		?>
 		<input type="checkbox" id="auto_send_orders" name="aoi_options[auto_send_orders]" value="1" <?php checked( 1, $value ); ?> />
 		<label for="auto_send_orders"><?php esc_html_e( 'Automatically send orders to affiliate', 'affiliate-order-integration' ); ?></label>
@@ -169,7 +178,7 @@ class AOI_Admin {
 	 */
 	public function order_status_callback() {
 		$options = get_option( 'aoi_options', array() );
-		$value = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
+		$value   = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
 		?>
 		<select id="order_status" name="aoi_options[order_status]">
 			<option value="processing" <?php selected( 'processing', $value ); ?>><?php esc_html_e( 'Processing', 'affiliate-order-integration' ); ?></option>
@@ -211,7 +220,7 @@ class AOI_Admin {
 	public function logs_page() {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
-		
+
 		$logs = $wpdb->get_results( "SELECT * FROM $table_name ORDER BY sent_at DESC LIMIT 100" );
 		?>
 		<div class="wrap">
@@ -263,13 +272,23 @@ class AOI_Admin {
 	 * Enqueue admin scripts
 	 */
 	public function enqueue_admin_scripts( $hook ) {
-		if ( 'settings_page_affiliate-order-integration' === $hook || 'woocommerce_page_affiliate-order-logs' === $hook ) {
+		global $post_type;
+
+		// Load on settings page, logs page, and order list/edit pages
+		if ( 'settings_page_affiliate-order-integration' === $hook ||
+			'woocommerce_page_affiliate-order-logs' === $hook ||
+			'shop_order' === $post_type ||
+			'edit.php' === $hook && 'shop_order' === $post_type ) {
 			wp_enqueue_style( 'aoi-admin', AOI_PLUGIN_URL . 'admin/css/admin.css', array(), AOI_PLUGIN_VERSION );
 			wp_enqueue_script( 'aoi-admin', AOI_PLUGIN_URL . 'admin/js/admin.js', array( 'jquery' ), AOI_PLUGIN_VERSION, true );
-			wp_localize_script( 'aoi-admin', 'aoi_ajax', array(
-				'url' => admin_url( 'admin-ajax.php' ),
-				'nonce' => wp_create_nonce( 'aoi_ajax_nonce' ),
-			) );
+			wp_localize_script(
+				'aoi-admin',
+				'aoi_ajax',
+				array(
+					'url'   => admin_url( 'admin-ajax.php' ),
+					'nonce' => wp_create_nonce( 'aoi_ajax_nonce' ),
+				)
+			);
 		}
 	}
 
@@ -278,14 +297,14 @@ class AOI_Admin {
 	 */
 	public function ajax_test_connection() {
 		check_ajax_referer( 'aoi_ajax_nonce', 'nonce' );
-		
+
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( -1 );
 		}
 
-		$api = new AOI_Affiliate_API();
+		$api    = new AOI_Affiliate_API();
 		$result = $api->test_connection();
-		
+
 		wp_send_json( $result );
 	}
 
@@ -294,24 +313,209 @@ class AOI_Admin {
 	 */
 	public function ajax_resend_order() {
 		check_ajax_referer( 'aoi_ajax_nonce', 'nonce' );
-		
+
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( -1 );
 		}
 
 		$order_id = intval( $_POST['order_id'] );
-		
+
 		if ( ! $order_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid order ID', 'affiliate-order-integration' ) ) );
 		}
 
 		$handler = AOI_Order_Handler::get_instance();
-		$result = $handler->send_order_to_affiliate( $order_id );
-		
+		$result  = $handler->send_order_to_affiliate( $order_id );
+
 		if ( $result ) {
 			wp_send_json_success( array( 'message' => __( 'Order resent successfully', 'affiliate-order-integration' ) ) );
 		} else {
 			wp_send_json_error( array( 'message' => __( 'Failed to resend order', 'affiliate-order-integration' ) ) );
 		}
+	}
+
+	/**
+	 * Thêm cột affiliate status vào danh sách đơn hàng
+	 */
+	public function add_affiliate_column( $columns ) {
+		$new_columns = array();
+
+		foreach ( $columns as $key => $value ) {
+			$new_columns[ $key ] = $value;
+
+			// Thêm cột affiliate status sau cột order total
+			if ( 'order_status' === $key ) {
+				$new_columns['affiliate_status'] = __( 'Affiliate Status', 'affiliate-order-integration' );
+			}
+		}
+		return $new_columns;
+	}
+
+	/**
+	 * Hiển thị nội dung cột affiliate status
+	 */
+	public function affiliate_column_content( $column_name, $order_id ) {
+		if ( 'affiliate_status' !== $column_name ) {
+			return;
+		}
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
+
+		$log = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE order_id = %d", $order_id ) );
+
+		if ( $log ) {
+			if ( 'sent' === $log->status ) {
+				echo '<span style="color: #00a32a; font-weight: bold;">✓ ' . esc_html__( 'Sent', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><small>' . esc_html( $log->sent_at ) . '</small>';
+			} else {
+				echo '<span style="color: #d63638; font-weight: bold;">✗ ' . esc_html__( 'Failed', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><button type="button" class="button button-small resend-order" data-order-id="' . esc_attr( $order_id ) . '">' . esc_html__( 'Resend', 'affiliate-order-integration' ) . '</button>';
+			}
+		} else {
+			// Kiểm tra có CTV token không
+			$ctv_token = get_post_meta( $order_id, '_aoi_ctv_token', true );
+			if ( $ctv_token ) {
+				echo '<span style="color: #f0ad4e;">⏳ ' . esc_html__( 'Pending', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><button type="button" class="button button-small resend-order" data-order-id="' . esc_attr( $order_id ) . '">' . esc_html__( 'Send Now', 'affiliate-order-integration' ) . '</button>';
+			} else {
+				echo '<span style="color: #6c757d;">— ' . esc_html__( 'No CTV', 'affiliate-order-integration' ) . '</span>';
+			}
+		}
+	}
+		/**
+		 * Làm cột Affiliate Status có thể sắp xếp
+		 */
+	public function affiliate_column_sortable( $column ) {
+		$column['affiliate_status'] = 'affiliate_status';
+		return $column;
+	}
+
+	/**
+	 * Thêm meta box cho affiliate info vào order edit page
+	 */
+	public function add_affiliate_meta_box() {
+		add_meta_box(
+			'aoi_affiliate_info',
+			__( 'Affiliate Information', 'affiliate-order-integration' ),
+			array( $this, 'affiliate_meta_box_content' ),
+			'shop_order',
+			'side',
+			'default'
+		);
+	}
+
+	/**
+	 * Hiển thị nội dung meta box affiliate info
+	 *
+	 * @param WP_Post $post Post object.
+	 */
+	public function affiliate_meta_box_content( $post ) {
+		$order_id = $post->ID;
+
+		// Lấy thông tin từ database
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
+		$log        = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE order_id = %d", $order_id ) );
+
+		// Lấy CTV token từ order meta
+		$ctv_token = get_post_meta( $order_id, '_aoi_ctv_token', true );
+
+		echo 'div class ="aoi-affiliate-info">';
+
+		// CTV Token Info
+		echo '<p><strong>' . esc_html__( 'CTV Token:', 'affiliate-order-integration' ) . '</strong></br>';
+		if ( $ctv_token ) {
+			echo '<code>' . esc_html( substr( $ctv_token, 0, 20 ) ) . '...</code>';
+		} else {
+			echo '<em>' . esc_html__( 'No CTV token found', 'affiliate-order-integration' ) . '</em>';
+		}
+		echo '</p>';
+
+		// Affiliate Status
+		echo '<p><strong>' . esc_html__( 'Affiliate Status:', 'affiliate-order-integration' ) . '</strong></br>';
+		if ( $log ) {
+			if ( 'sent' === $log->status ) {
+				echo '<span style="color: #00a32a;">✓ ' . esc_html__( 'Successfully sent', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><small>' . esc_html__( 'Sent at:', 'affiliate-order-integration' ) . ' ' . esc_html( $log->sent_at ) . '</small>';
+			} else {
+				echo '<span style="color: #d63638;">✗ ' . esc_html__( 'Send failed', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><small>' . esc_html__( 'Last attempt:', 'affiliate-order-integration' ) . ' ' . esc_html( $log->sent_at ) . '</small>';
+			}
+
+			// Response data
+			if ( $log->response_data ) {
+				$response_data = json_decode( $log->response_data, true );
+				echo '<br><details style="margin-top: 10px;"><summary>' . esc_html__( 'Response Details', 'affiliate-order-integration' ) . '</summary>';
+				echo '<pre style="background: #f5f5f5; padding: 10px; font-size: 11px; max-height: 200px; overflow-y: auto;">' . esc_html( wp_json_encode( $response_data, JSON_PRETTY_PRINT ) ) . '</pre>';
+				echo '</details>';
+			}
+		} elseif ( $ctv_token ) {
+				echo '<span style="color: #f0ad4e;">⏳ ' . esc_html__( 'Not sent yet', 'affiliate-order-integration' ) . '</span>';
+		} else {
+			echo '<span style="color: #6c757d;">— ' . esc_html__( 'No CTV token', 'affiliate-order-integration' ) . '</span>';
+		}
+		echo '</p>';
+
+		// Manual send button
+		if ( $ctv_token ) {
+			echo '<p>';
+			echo '<button type="button" id="manual-send-affiliate" class="button button-secondary" data-order-id="' . esc_attr( $order_id ) . '">';
+			echo esc_html__( 'Send to Affiliate Now', 'affiliate-order-integration' );
+			echo '</button>';
+			echo '</p>';
+		}
+
+		echo '</div>';
+
+		// JavaScript for manual send button
+		?>
+		<script>
+			jQuery(document).ready(function($) {
+				$('#manual-send-affiliate').on('click', function() {
+					var $button = $(this);
+					var orderId = $button.data('order-id');
+
+					if (!confirm('<?php echo esc_js( __( 'Send this order to affiliate network?', 'affiliate-order-integration' ) ); ?>')) {
+						return;
+					}
+
+					$button.prop('disabled', true).text('<?php esc_js( __( 'Sending...', 'affiliate-order-integration' ) ); ?>');
+
+					$.ajax({
+						url: ajaxurl,
+						type: 'POST',
+						data: {
+							action: 'aoi_resend_order',
+							nonce: '<?php echo esc_js( wp_create_nonce( 'aoi_ajax_nonce' ) ); ?>',
+							order_id: orderId
+						},
+						success: function(response) {
+							if (response.success) {
+								alert('<?php echo esc_js( __( 'Order sent successfully!', 'affiliate-order-integration' ) ); ?>');
+								location.reload();
+							} else {
+								alert('<?php echo esc_js( __( 'Failed to send order. Please try again.', 'affiliate-order-integration' ) ); ?>');
+
+							}
+						},
+						error: function() {
+							alert('<?php echo esc_js( __( 'Connection error. Please try again.', 'affiliate-order-integration' ) ); ?>');
+						},
+						complete: function() {
+							$button.prop('disabled', false).text('<?php echo esc_js( __( 'Send to Affiliate Now', 'affiliate-order-integration' ) ); ?>');
+						}
+					})
+				})
+			})
+		</script>
+		<?php
+	}
+
+	/**
+	 * Lưu thông tin từ affiliate meta box
+	 */
+	public function save_affiliate_meta_box( $order_id ) {
+		// Có thể mở rộng để lưu settings riêng cho từng order
 	}
 }

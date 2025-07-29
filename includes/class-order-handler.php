@@ -50,7 +50,7 @@ class AOI_Order_Handler {
 	private function init_hooks() {
 		// Khởi tạo AOI_Affiliate_API để tự động hook vào thankyou
 		$api = new AOI_Affiliate_API();
-		
+
 		// Backup hooks cho order status changes (nếu cần)
 		add_action( 'woocommerce_order_status_completed', array( $this, 'send_order_to_affiliate' ) );
 		add_action( 'woocommerce_order_status_processing', array( $this, 'maybe_send_order_to_affiliate' ) );
@@ -64,7 +64,7 @@ class AOI_Order_Handler {
 	 */
 	public function send_order_to_affiliate( $order_id ) {
 		$options = get_option( 'aoi_options', array() );
-		
+
 		if ( empty( $options['auto_send_orders'] ) ) {
 			return;
 		}
@@ -80,13 +80,13 @@ class AOI_Order_Handler {
 	 */
 	public function maybe_send_order_to_affiliate( $order_id ) {
 		$options = get_option( 'aoi_options', array() );
-		
+
 		if ( empty( $options['auto_send_orders'] ) ) {
 			return;
 		}
 
 		$order_status = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
-		
+
 		if ( 'processing' === $order_status ) {
 			$this->process_order( $order_id );
 		}
@@ -100,7 +100,7 @@ class AOI_Order_Handler {
 	 */
 	private function process_order( $order_id ) {
 		$order = wc_get_order( $order_id );
-		
+
 		if ( ! $order ) {
 			return false;
 		}
@@ -111,12 +111,12 @@ class AOI_Order_Handler {
 		}
 
 		// Gửi đến affiliate API
-		$api = new AOI_Affiliate_API();
+		$api    = new AOI_Affiliate_API();
 		$result = $api->send_order_to_aff( $order );
-		
+
 		// Lưu kết quả vào database
 		$this->save_order_log( $order_id, $result );
-		
+
 		return $result['success'];
 	}
 
@@ -128,7 +128,7 @@ class AOI_Order_Handler {
 	 */
 	private function prepare_order_data( $order ) {
 		$items = array();
-		
+
 		foreach ( $order->get_items() as $item ) {
 			$product = $item->get_product();
 			$items[] = array(
@@ -160,9 +160,9 @@ class AOI_Order_Handler {
 	private function is_order_sent( $order_id ) {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
-		
+
 		$result = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $table_name WHERE order_id = %d", $order_id ) );
-		
+
 		return null !== $result;
 	}
 
@@ -176,10 +176,10 @@ class AOI_Order_Handler {
 	private function save_order_log( $order_id, $result ) {
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
-		
-		$options = get_option( 'aoi_options', array() );
+
+		$options       = get_option( 'aoi_options', array() );
 		$affiliate_url = isset( $options['affiliate_url'] ) ? $options['affiliate_url'] : '';
-		
+
 		$wpdb->insert(
 			$table_name,
 			array(

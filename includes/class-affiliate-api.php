@@ -48,9 +48,9 @@ class AOI_Affiliate_API {
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->options = get_option( 'aoi_options', array() );
+		$this->options    = get_option( 'aoi_options', array() );
 		$this->partner_id = isset( $this->options['partner_id'] ) ? intval( $this->options['partner_id'] ) : 1;
-		$this->log_file = WP_CONTENT_DIR . '/logs/aff-sellmate.log';
+		$this->log_file   = WP_CONTENT_DIR . '/logs/aff-sellmate.log';
 		$this->init_hooks();
 	}
 
@@ -70,6 +70,11 @@ class AOI_Affiliate_API {
 	public function send_order_to_aff_hook( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( $order ) {
+			// Lưu CTV Token vào order meta để tracking
+			$ctv_value = $this->get_ctv_cookie();
+			if ( $ctv_value ) {
+				update_post_meta( $order_id, '_aoi_ctv_token', $ctv_value );
+			}
 			$this->send_order_to_aff( $order );
 		}
 	}
@@ -106,7 +111,7 @@ class AOI_Affiliate_API {
 			);
 		}
 
-		$ctv_id = $ctv_data['id'];
+		$ctv_id      = $ctv_data['id'];
 		$ctv_link_id = $ctv_data['linkId'] ?? 0;
 
 		// Lấy danh sách sản phẩm từ đơn hàng
@@ -114,7 +119,7 @@ class AOI_Affiliate_API {
 
 		foreach ( $order->get_items() as $item ) {
 			$item_data = $item->get_data();
-			$product = wc_get_product( $item_data['product_id'] );
+			$product   = wc_get_product( $item_data['product_id'] );
 
 			$cuor_products[] = array(
 				'name'     => $item_data['name'],
@@ -198,8 +203,18 @@ class AOI_Affiliate_API {
 	public function test_connection() {
 		// Tạo test data
 		$test_data = array(
-			'test' => true,
-			'timestamp' => current_time( 'timestamp' ),
+			'cuor_product'      => array(
+				array(
+					'name'     => 'Test Product',
+					'quantity' => 1,
+					'price'    => '100000',
+					'link'     => 'https://example.com/test-product',
+					'sku'      => 'TEST-001',
+				),
+			),
+			'cuor_affiliate_id' => 999999,
+			'cuor_customer_id'  => $this->partner_id,
+			'link_id'           => 0,
 		);
 
 		$this->log_message( 'Testing connection with data: ' . wp_json_encode( $test_data ) );
@@ -226,7 +241,9 @@ class AOI_Affiliate_API {
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
+		$response_body = wp_remote_retrieve_body( $response );
 		$this->log_message( 'Test connection response code: ' . $response_code );
+		$this->log_message( 'Test connection response body: ' . $response_body );
 
 		if ( 200 === $response_code || 201 === $response_code ) {
 			return array(
