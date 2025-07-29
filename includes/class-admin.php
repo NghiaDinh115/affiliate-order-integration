@@ -62,10 +62,17 @@ class AOI_Admin {
 	 * Khởi tạo order columns tương thích với COT và legacy
 	 */
 	private function init_order_columns() {
-		// Sử dụng legacy hooks cho tất cả các trường hợp để tránh lỗi compatibility
+		// Multiple hooks để đảm bảo tương thích với tất cả phiên bản WooCommerce
+		
+		// Legacy post-based orders
 		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ) );
 		add_action( 'manage_shop_order_posts_custom_column', array( $this, 'affiliate_column_content' ), 10, 2 );
 		add_filter( 'manage_edit-shop_order_sortable_columns', array( $this, 'affiliate_column_sortable' ) );
+		
+		// New HPOS (High-Performance Order Storage) hooks
+		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ) );
+		add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'affiliate_column_content_hpos' ), 10, 2 );
+		add_filter( 'manage_woocommerce_page_wc-orders_sortable_columns', array( $this, 'affiliate_column_sortable' ) );
 	}
 
 	/**
@@ -366,11 +373,17 @@ class AOI_Admin {
 		foreach ( $columns as $key => $value ) {
 			$new_columns[ $key ] = $value;
 
-			// Thêm cột affiliate status sau cột order total
-			if ( 'order_status' === $key ) {
+			// Thêm cột affiliate status sau cột order_status hoặc order_total
+			if ( 'order_status' === $key || 'order_total' === $key ) {
 				$new_columns['affiliate_status'] = __( 'Affiliate Status', 'affiliate-order-integration' );
 			}
 		}
+		
+		// Nếu không tìm thấy order_status hoặc order_total, thêm vào cuối
+		if ( ! isset( $new_columns['affiliate_status'] ) ) {
+			$new_columns['affiliate_status'] = __( 'Affiliate Status', 'affiliate-order-integration' );
+		}
+		
 		return $new_columns;
 	}
 
@@ -383,6 +396,24 @@ class AOI_Admin {
 		}
 
 		$order_id = is_object( $order ) ? $order->get_id() : $order;
+		$this->display_affiliate_status( $order_id );
+	}
+
+	/**
+	 * Hiển thị nội dung cột affiliate status cho HPOS (High-Performance Order Storage)
+	 */
+	public function affiliate_column_content_hpos( $column_name, $order ) {
+		if ( 'affiliate_status' !== $column_name ) {
+			return;
+		}
+
+		// HPOS có thể truyền order object hoặc order ID
+		if ( is_object( $order ) ) {
+			$order_id = method_exists( $order, 'get_id' ) ? $order->get_id() : $order->ID;
+		} else {
+			$order_id = $order;
+		}
+		
 		$this->display_affiliate_status( $order_id );
 	}
 
@@ -430,7 +461,15 @@ class AOI_Admin {
 	 * Helper method để lấy order meta tương thích với COT và legacy
 	 */
 	private function get_order_meta( $order_id, $meta_key ) {
-		// Sử dụng get_post_meta cho tất cả trường hợp để đảm bảo tương thích
+		// Thử get order object trước
+		if ( function_exists( 'wc_get_order' ) ) {
+			$order = wc_get_order( $order_id );
+			if ( $order && method_exists( $order, 'get_meta' ) ) {
+				return $order->get_meta( $meta_key );
+			}
+		}
+		
+		// Fallback to post meta
 		return get_post_meta( $order_id, $meta_key, true );
 	}
 	
@@ -446,11 +485,22 @@ class AOI_Admin {
 	 * Thêm meta box cho affiliate info vào order edit page
 	 */
 	public function add_affiliate_meta_box() {
+		// Legacy post-based orders
 		add_meta_box(
 			'aoi_affiliate_info',
 			__( 'Affiliate Information', 'affiliate-order-integration' ),
 			array( $this, 'affiliate_meta_box_content' ),
 			'shop_order',
+			'side',
+			'default'
+		);
+		
+		// HPOS orders
+		add_meta_box(
+			'aoi_affiliate_info',
+			__( 'Affiliate Information', 'affiliate-order-integration' ),
+			array( $this, 'affiliate_meta_box_content' ),
+			'woocommerce_page_wc-orders',
 			'side',
 			'default'
 		);
