@@ -39,6 +39,8 @@ class AOI_Admin {
 	 */
 	private function __construct() {
 		$this->init_hooks();
+		// Debug mode - uncomment để debug
+		// add_action( 'admin_notices', array( $this, 'debug_admin_notices' ) );
 	}
 
 	/**
@@ -62,17 +64,22 @@ class AOI_Admin {
 	 * Khởi tạo order columns tương thích với COT và legacy
 	 */
 	private function init_order_columns() {
-		// Multiple hooks để đảm bảo tương thích với tất cả phiên bản WooCommerce
+		// Force hooks với priority cao để đảm bảo chúng được add
+		add_action( 'current_screen', array( $this, 'setup_order_columns_on_screen' ) );
+		add_action( 'load-edit.php', array( $this, 'setup_order_columns_on_load' ) );
+		add_action( 'load-woocommerce_page_wc-orders', array( $this, 'setup_order_columns_on_load' ) );
+		
+		// Multiple hooks với priority cao để đảm bảo tương thích
 		
 		// Legacy post-based orders
-		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ) );
+		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ), 999 );
 		add_action( 'manage_shop_order_posts_custom_column', array( $this, 'affiliate_column_content' ), 10, 2 );
-		add_filter( 'manage_edit-shop_order_sortable_columns', array( $this, 'affiliate_column_sortable' ) );
+		add_filter( 'manage_edit-shop_order_sortable_columns', array( $this, 'affiliate_column_sortable' ), 999 );
 		
 		// New HPOS (High-Performance Order Storage) hooks
-		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ) );
+		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ), 999 );
 		add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'affiliate_column_content_hpos' ), 10, 2 );
-		add_filter( 'manage_woocommerce_page_wc-orders_sortable_columns', array( $this, 'affiliate_column_sortable' ) );
+		add_filter( 'manage_woocommerce_page_wc-orders_sortable_columns', array( $this, 'affiliate_column_sortable' ), 999 );
 	}
 
 	/**
@@ -305,10 +312,32 @@ class AOI_Admin {
 		global $post_type;
 
 		// Load on settings page, logs page, and order list/edit pages
+		$load_scripts = false;
+		
+		// Settings và logs pages
 		if ( 'settings_page_affiliate-order-integration' === $hook ||
-			'woocommerce_page_affiliate-order-logs' === $hook ||
-			'shop_order' === $post_type ||
-			'edit.php' === $hook && 'shop_order' === $post_type ) {
+			'woocommerce_page_affiliate-order-logs' === $hook ) {
+			$load_scripts = true;
+		}
+		
+		// Legacy shop_order pages
+		if ( 'shop_order' === $post_type ||
+			( 'edit.php' === $hook && 'shop_order' === $post_type ) ) {
+			$load_scripts = true;
+		}
+		
+		// HPOS order pages
+		if ( 'woocommerce_page_wc-orders' === $hook ||
+			strpos( $hook, 'wc-orders' ) !== false ) {
+			$load_scripts = true;
+		}
+		
+		// WooCommerce admin pages
+		if ( strpos( $hook, 'woocommerce' ) !== false ) {
+			$load_scripts = true;
+		}
+
+		if ( $load_scripts ) {
 			wp_enqueue_style( 'aoi-admin', AOI_PLUGIN_URL . 'admin/css/admin.css', array(), AOI_PLUGIN_VERSION );
 			wp_enqueue_script( 'aoi-admin', AOI_PLUGIN_URL . 'admin/js/admin.js', array( 'jquery' ), AOI_PLUGIN_VERSION, true );
 			wp_localize_script(
@@ -618,5 +647,67 @@ class AOI_Admin {
 	 */
 	public function save_affiliate_meta_box( $order_id ) {
 		// Có thể mở rộng để lưu settings riêng cho từng order
+	}
+
+	/**
+	 * Debug admin notices để kiểm tra hooks
+	 */
+	public function debug_admin_notices() {
+		global $hook_suffix, $post_type;
+		if ( current_user_can( 'manage_options' ) ) {
+			echo '<div class="notice notice-info"><p>';
+			echo '<strong>AOI Debug:</strong> ';
+			echo 'Hook: ' . esc_html( $hook_suffix ?? 'none' );
+			echo ' | Post Type: ' . esc_html( $post_type ?? 'none' );
+			echo ' | URL: ' . esc_html( $_SERVER['REQUEST_URI'] ?? 'none' );
+			echo '</p></div>';
+		}
+	}
+
+	/**
+	 * Force add debug column method
+	 */
+	public function force_add_affiliate_column() {
+		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ), 999 );
+		add_action( 'manage_shop_order_posts_custom_column', array( $this, 'affiliate_column_content' ), 10, 2 );
+		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ), 999 );
+		add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'affiliate_column_content_hpos' ), 10, 2 );
+	}
+
+	/**
+	 * Setup order columns khi current_screen được load
+	 */
+	public function setup_order_columns_on_screen( $screen ) {
+		if ( ! $screen ) {
+			return;
+		}
+
+		// Check nếu đang ở order list pages
+		if ( $screen->id === 'edit-shop_order' || 
+			 $screen->id === 'woocommerce_page_wc-orders' ||
+			 strpos( $screen->id, 'shop_order' ) !== false ||
+			 strpos( $screen->id, 'wc-orders' ) !== false ) {
+			
+			// Force add hooks cho screen hiện tại
+			add_filter( 'manage_' . $screen->id . '_columns', array( $this, 'add_affiliate_column' ), 999 );
+		}
+	}
+
+	/**
+	 * Setup order columns khi page được load
+	 */
+	public function setup_order_columns_on_load() {
+		global $post_type;
+		
+		// Đảm bảo hooks được add ngay khi page load
+		if ( $post_type === 'shop_order' || 
+			 isset( $_GET['page'] ) && $_GET['page'] === 'wc-orders' ) {
+			
+			// Re-add hooks với priority cao nhất
+			add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ), 9999 );
+			add_action( 'manage_shop_order_posts_custom_column', array( $this, 'affiliate_column_content' ), 1, 2 );
+			add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ), 9999 );
+			add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'affiliate_column_content_hpos' ), 1, 2 );
+		}
 	}
 }
