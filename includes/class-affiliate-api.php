@@ -68,12 +68,19 @@ class AOI_Affiliate_API {
 	 * @param int $order_id Order ID.
 	 */
 	public function send_order_to_aff_hook( $order_id ) {
+		$this->log_message( "THANKYOU HOOK TRIGGERED for Order ID: $order_id" );
+		
 		$order = wc_get_order( $order_id );
 		if ( $order ) {
 			// Lưu CTV Token vào order meta để tracking
 			$ctv_value = $this->get_ctv_cookie();
+			$this->log_message( "CTV Cookie value: " . ($ctv_value ? $ctv_value : 'NULL') );
+			
 			if ( $ctv_value ) {
 				update_post_meta( $order_id, '_aoi_ctv_token', $ctv_value );
+				$this->log_message( "CTV Token saved to order meta: $ctv_value" );
+			} else {
+				$this->log_message( "NO CTV Token found - will not save to order meta" );
 			}
 			$this->send_order_to_aff( $order );
 		}
@@ -142,16 +149,17 @@ class AOI_Affiliate_API {
 		$this->log_message( 'Request data: ' . wp_json_encode( $data ) );
 
 		// Gửi request
-		return $this->send_curl_request( $data );
+		return $this->send_curl_request( $data, $order->get_id() );
 	}
 
 	/**
 	 * Gửi CURL request đến affiliate API
 	 *
 	 * @param array $data Data to send.
+	 * @param int $order_id Order ID for logging.
 	 * @return array
 	 */
-	private function send_curl_request( $data ) {
+	private function send_curl_request( $data, $order_id = null ) {
 		$json_data = wp_json_encode( $data );
 
 		$args = array(
@@ -179,6 +187,11 @@ class AOI_Affiliate_API {
 		$response_body = wp_remote_retrieve_body( $response );
 
 		$this->log_message( 'HTTP Code: ' . $response_code . ' Response: ' . $response_body );
+
+		// Lưu vào database để hiển thị status
+		if ( $order_id ) {
+			$this->save_to_database( $order_id, $response_code, $response_body );
+		}
 
 		if ( 200 === $response_code || 201 === $response_code ) {
 			return array(
@@ -323,6 +336,34 @@ class AOI_Affiliate_API {
 		$timestamp = date( 'Y-m-d H:i:s' );
 		$log_entry = '[' . $timestamp . '] ' . $message . PHP_EOL;
 		file_put_contents( $this->log_file, $log_entry, FILE_APPEND | LOCK_EX );
+	}
+
+	/**
+	 * Lưu kết quả API call vào database
+	 *
+	 * @param int $order_id Order ID.
+	 * @param int $response_code HTTP response code.
+	 * @param string $response_body Response body.
+	 */
+	private function save_to_database( $order_id, $response_code, $response_body ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
+
+		$status = ( 200 === $response_code || 201 === $response_code ) ? 'sent' : 'failed';
+
+		$wpdb->replace(
+			$table_name,
+			array(
+				'order_id'      => $order_id,
+				'status'        => $status,
+				'affiliate_url' => $this->api_url,
+				'response_data' => $response_body,
+				'sent_at'       => current_time( 'mysql' ),
+			),
+			array( '%d', '%s', '%s', '%s', '%s' )
+		);
+
+		$this->log_message( "Database saved: Order $order_id - Status: $status" );
 	}
 
 	/**
