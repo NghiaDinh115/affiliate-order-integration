@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
+define( 'AOI_PLUGIN_FILE', __FILE__ );
 define( 'AOI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'AOI_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AOI_PLUGIN_VERSION', '1.0.0' );

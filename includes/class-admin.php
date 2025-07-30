@@ -53,6 +53,9 @@ class AOI_Admin {
 		add_action( 'wp_ajax_aoi_test_connection', array( $this, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_aoi_resend_order', array( $this, 'ajax_resend_order' ) );
 
+		// Thêm Settings link trong trang Plugins
+		add_filter( 'plugin_action_links_' . plugin_basename( AOI_PLUGIN_FILE ), array( $this, 'plugin_action_links' ) );
+
 		// Thêm cột affiliate status vào danh sách đơn hàng WooCommerce (tương thích với COT và legacy)
 		$this->init_order_columns();
 
@@ -64,6 +67,14 @@ class AOI_Admin {
 	 * Khởi tạo order columns tương thích với COT và legacy
 	 */
 	private function init_order_columns() {
+		// Kiểm tra settings trước khi add hooks
+		$hooks_options = get_option( 'aoi_hooks_options', array() );
+		$enable_columns = isset( $hooks_options['enable_order_columns'] ) ? $hooks_options['enable_order_columns'] : '1';
+
+		if ( '1' !== $enable_columns ) {
+			return; // Không cần thêm cột nếu không được bật
+		}
+
 		// Force hooks với priority cao để đảm bảo chúng được add
 		add_action( 'current_screen', array( $this, 'setup_order_columns_on_screen' ) );
 		add_action( 'load-edit.php', array( $this, 'setup_order_columns_on_load' ) );
@@ -86,6 +97,14 @@ class AOI_Admin {
 	 * Khởi tạo order meta box tương thích với COT và legacy
 	 */
 	private function init_order_meta_box() {
+		// Kiểm tra settings trước khi add hooks
+		$hooks_options = get_option( 'aoi_hooks_options', array() );
+		$enable_meta_boxes = isset( $hooks_options['enable_meta_boxes'] ) ? $hooks_options['enable_meta_boxes'] : '1';
+
+		if ( '1' !== $enable_meta_boxes ) {
+			return; // Không cần thêm meta box nếu không được bật
+		}
+
 		// Meta box hooks work for both COT and legacy
 		add_action( 'add_meta_boxes', array( $this, 'add_affiliate_meta_box' ) );
 		
@@ -99,23 +118,64 @@ class AOI_Admin {
 	}
 
 	/**
+	 * Thêm Settings link vào trang Plugins
+	 */
+	public function plugin_action_links( $links ) {
+		$settings_link = '<a href="' . admin_url( 'admin.php?page=affiliate-order-integration' ) . '">' . __( 'Settings', 'affiliate-order-integration' ) . '</a>';
+		array_unshift( $links, $settings_link );
+		return $links;
+	}
+
+	/**
 	 * Thêm menu admin
 	 */
 	public function add_admin_menu() {
-		add_options_page(
-			__( 'Affiliate Order Integration', 'affiliate-order-integration' ),
-			__( 'Affiliate Orders', 'affiliate-order-integration' ),
-			'manage_options',
-			'affiliate-order-integration',
+		add_menu_page(
+			'Affiliate Order Integration', 		// page title
+			'Affiliate Orders',					// menu title
+			'manage_options',					// capability
+			'affiliate-order-integration',		// menu slug
+			array( $this, 'main_admin_page' ),	// callback
+			'dashicons-networking',				// icon
+			30									// position	
+		);
+
+		// add_submenu_page(
+		// 	'woocommerce',
+		// 	__( 'Affiliate Order Logs', 'affiliate-order-integration' ),
+		// 	__( 'Affiliate Logs', 'affiliate-order-integration' ),
+		// 	'manage_options',
+		// 	'affiliate-order-logs',
+		// 	array( $this, 'logs_page' )
+		// );
+
+		// Submenu 1: Settings (API Configuration)
+		add_submenu_page(
+			'affiliate-order-integration',    		// parent slug
+			'API Settings',							// page title	
+			'API Settings',							// menu title
+			'manage_options',						// capability
+			'affiliate-order-integration',			// same as parent = default page
 			array( $this, 'settings_page' )
 		);
 
+		// Submenu 2: Hooks Management
 		add_submenu_page(
-			'woocommerce',
-			__( 'Affiliate Order Logs', 'affiliate-order-integration' ),
-			__( 'Affiliate Logs', 'affiliate-order-integration' ),
+			'affiliate-order-integration',
+			'Hooks Management',
+			'Hooks Management', 
 			'manage_options',
-			'affiliate-order-logs',
+			'aoi-hooks-management',
+			array( $this, 'hooks_management_page' )
+		);
+
+		// Submenu 3: Logs (di chuyển từ WooCommerce)
+		add_submenu_page(
+			'affiliate-order-integration',
+			'Order Logs',
+			'Order Logs',
+			'manage_options', 
+			'aoi-order-logs',
 			array( $this, 'logs_page' )
 		);
 	}
@@ -126,12 +186,20 @@ class AOI_Admin {
 	public function register_settings() {
 		register_setting( 'aoi_settings', 'aoi_options' );
 		register_setting( 'aoi_settings', 'aff_app_key' );
+		register_setting( 'aoi_hooks_settings', 'aoi_hooks_options' );
 
 		add_settings_section(
 			'aoi_general_section',
 			__( 'Sellmate Affiliate Settings', 'affiliate-order-integration' ),
 			array( $this, 'general_section_callback' ),
 			'aoi_settings'
+		);
+
+		add_settings_section(
+			'aoi_hooks_section',
+			__( 'Hooks Management', 'affiliate-order-integration' ),
+			array( $this, 'hooks_section_callback' ),
+			'aoi_hooks_settings'
 		);
 
 		add_settings_field(
@@ -165,6 +233,23 @@ class AOI_Admin {
 			'aoi_settings',
 			'aoi_general_section'
 		);
+
+		add_settings_field(
+			'enable_order_columns',
+			__( 'Enable Order Columns', 'affiliate-order-integration' ),
+			array( $this, 'enable_order_columns_callback' ),
+			'aoi_hooks_settings',
+			'aoi_hooks_section'
+		);
+
+		add_settings_field(
+			'enable_meta_boxes',
+			__( 'Enable Meta Boxes', 'affiliate-order-integration' ),
+			array( $this, 'enable_meta_boxes_callback' ),
+			'aoi_hooks_settings',
+			'aoi_hooks_section'
+		);
+
 	}
 
 	/**
@@ -226,12 +311,43 @@ class AOI_Admin {
 	}
 
 	/**
+	 * Hooks section callback
+	 */
+	public function hooks_section_callback() {
+		echo '<p>' . esc_html__( 'Control which hooks are active for the plugin.', 'affiliate-order-integration' ) . '</p>';
+	}
+
+	/**
+	 * Enable order columns callback
+	 */
+	public function enable_order_columns_callback() {
+		$options = get_option( 'aoi_hooks_options', array() );
+		$value = isset( $options['enable_order_columns'] ) ? $options['enable_order_columns'] : '1';
+		?>
+		<input type="checkbox" id="enable_order_columns" name="aoi_hooks_options[enable_order_columns]" value="1" <?php checked( 1, $value ); ?> />
+		<label for="enable_order_columns"><?php esc_html_e( 'Add affiliate status column to WooCommerce orders list', 'affiliate-order-integration' ); ?></label>
+		<?php
+	}
+
+	/**
+	 * Enable meta boxes callback
+	 */
+	public function enable_meta_boxes_callback() {
+		$options = get_option( 'aoi_hooks_options', array() );
+		$value = isset( $options['enable_meta_boxes'] ) ? $options['enable_meta_boxes'] : '1';
+		?>
+		<input type="checkbox" id="enable_meta_boxes" name="aoi_hooks_options[enable_meta_boxes]" value="1" <?php checked( 1, $value ); ?> />
+		<label for="enable_meta_boxes"><?php esc_html_e( 'Add affiliate info meta box to order edit pages', 'affiliate-order-integration' ); ?></label>
+		<?php
+	}
+
+	/**
 	 * Settings page
 	 */
 	public function settings_page() {
 		?>
 		<div class="wrap aoi-admin-wrap">
-			<h1><?php esc_html_e( 'Affiliate Order Integration Settings', 'affiliate-order-integration' ); ?></h1>
+			<h1><?php esc_html_e( 'Affiliate Order Integration - API Settings', 'affiliate-order-integration' ); ?></h1>
 			
 			<form method="post" action="options.php">
 				<?php
@@ -306,6 +422,55 @@ class AOI_Admin {
 	}
 
 	/**
+	 * Main admin page
+	 */
+	public function main_admin_page() {
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Affiliate Order Integration', 'affiliate-order-integration' ); ?></h1>
+			<p><?php esc_html_e( 'Welcome to the Affiliate Order Integration plugin. Please configure your settings.', 'affiliate-order-integration' ); ?></p>
+			<p><?php esc_html_e( 'Use the menu on the left to access settings, logs, and hooks management.', 'affiliate-order-integration' ); ?></p>
+
+			<div class="aoi-admin-cards">
+				<div class="card">
+					<h2><?php esc_html_e( 'Quick Actions', 'affiliate-order-integration' ); ?></h2>
+					<p>
+						<a href="<?php echo admin_url('admin.php?page=affiliate-order-integration'); ?>" class="button button-primary">API Settings</a>
+						<a href="<?php echo admin_url('admin.php?page=aoi-hooks-management'); ?>" class="button">Hooks Management</a>
+						<a href="<?php echo admin_url('admin.php?page=aoi-order-logs'); ?>" class="button">View Logs</a>
+					</p>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Hooks management page
+	 */
+	public function hooks_management_page() {
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Hooks Management', 'affiliate-order-integration' ); ?></h1>
+
+			<form method="post" action="options.php">
+				<?php
+					settings_fields( 'aoi_hooks_settings' );
+					do_settings_sections( 'aoi_hooks_settings' );
+					submit_button();
+				?>
+			</form>
+
+			<div class="card">
+				<h2><?php esc_html_e( 'Current Hook Status', 'affiliate-order-integration' ); ?></h2>
+				<p><?php esc_html_e( 'Check which hooks are currently active:', 'affiliate-order-integration' ); ?></p>
+				<?php $this->display_hook_status(); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Enqueue admin scripts
 	 */
 	public function enqueue_admin_scripts( $hook ) {
@@ -315,8 +480,9 @@ class AOI_Admin {
 		$load_scripts = false;
 		
 		// Settings và logs pages
-		if ( 'settings_page_affiliate-order-integration' === $hook ||
-			'woocommerce_page_affiliate-order-logs' === $hook ) {
+		if ( strpos( $hook, 'affiliate-order-integration' ) !== false ||
+			strpos( $hook, 'aoi-hooks-management' ) !== false ||
+			strpos( $hook, 'aoi-order-logs' ) !== false ) {
 			$load_scripts = true;
 		}
 		
@@ -414,18 +580,6 @@ class AOI_Admin {
 		}
 		
 		return $new_columns;
-	}
-
-	/**
-	 * Hiển thị nội dung cột affiliate status cho COT
-	 */
-	public function affiliate_column_content_cot( $column_name, $order ) {
-		if ( 'affiliate_status' !== $column_name ) {
-			return;
-		}
-
-		$order_id = is_object( $order ) ? $order->get_id() : $order;
-		$this->display_affiliate_status( $order_id );
 	}
 
 	/**
@@ -551,7 +705,7 @@ class AOI_Admin {
 		// Lấy CTV token từ order meta
 		$ctv_token = get_post_meta( $order_id, '_aoi_ctv_token', true );
 
-		echo 'div class ="aoi-affiliate-info">';
+		echo '<div class="aoi-affiliate-info">';
 
 		// CTV Token Info
 		echo '<p><strong>' . esc_html__( 'CTV Token:', 'affiliate-order-integration' ) . '</strong></br>';
@@ -665,16 +819,6 @@ class AOI_Admin {
 	}
 
 	/**
-	 * Force add debug column method
-	 */
-	public function force_add_affiliate_column() {
-		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_affiliate_column' ), 999 );
-		add_action( 'manage_shop_order_posts_custom_column', array( $this, 'affiliate_column_content' ), 10, 2 );
-		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ), 999 );
-		add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'affiliate_column_content_hpos' ), 10, 2 );
-	}
-
-	/**
 	 * Setup order columns khi current_screen được load
 	 */
 	public function setup_order_columns_on_screen( $screen ) {
@@ -709,5 +853,25 @@ class AOI_Admin {
 			add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_affiliate_column' ), 9999 );
 			add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'affiliate_column_content_hpos' ), 1, 2 );
 		}
+	}
+
+	/**
+	 * Display hook status
+	 */
+	private function display_hook_status() {
+		global $wp_filter;
+
+		$hooks_to_check = [
+			'manage_edit-shop_order_columns' => 'Order Columns (Legacy)',
+			'manage_woocommerce_page_wc-orders_columns' => 'Order Columns (HPOS)',
+        	'add_meta_boxes' => 'Meta Boxes'
+		];
+
+		echo '<ul>';
+		foreach ( $hooks_to_check as $hook => $label ) {
+			$status = isset( $wp_filter[ $hook ] ) ? 'Active' : 'Inactive';
+		    echo '<li><strong>' . esc_html( $label ) . ':</strong> ' . $status . '</li>';
+		}
+		echo '</ul>';
 	}
 }
