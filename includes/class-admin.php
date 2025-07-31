@@ -861,16 +861,40 @@ class AOI_Admin {
 	private function display_hook_status() {
 		global $wp_filter;
 
+		// Get current settings
+		$hooks_options = get_option( 'aoi_hooks_options', array() );
+		$enable_columns = isset( $hooks_options['enable_order_columns'] ) ? $hooks_options['enable_order_columns'] : '1';
+		$enable_meta_boxes = isset( $hooks_options['enable_meta_boxes'] ) ? $hooks_options['enable_meta_boxes'] : '1';
+		
 		$hooks_to_check = [
-			'manage_edit-shop_order_columns' => 'Order Columns (Legacy)',
-			'manage_woocommerce_page_wc-orders_columns' => 'Order Columns (HPOS)',
-        	'add_meta_boxes' => 'Meta Boxes'
+			'manage_edit-shop_order_columns' => [
+				'label' => 'Order Columns (Legacy)',
+				'enabled_in_settings' => '1' === $enable_columns
+			],
+			'manage_woocommerce_page_wc-orders_columns' => [
+				'label' => 'Order Columns (HPOS)',
+				'enabled_in_settings' => '1' === $enable_columns
+			],
+        	'add_meta_boxes' => [
+				'label' => 'Meta Boxes',
+				'enabled_in_settings' => '1' === $enable_meta_boxes
+			]
 		];
 
 		echo '<ul>';
-		foreach ( $hooks_to_check as $hook => $label ) {
-			$status = isset( $wp_filter[ $hook ] ) ? 'Active' : 'Inactive';
-		    echo '<li><strong>' . esc_html( $label ) . ':</strong> ' . $status . '</li>';
+		foreach ( $hooks_to_check as $hook => $config ) {
+			$hook_registered = isset( $wp_filter[ $hook ] );
+			$settings_enabled = $config['enabled_in_settings'];
+
+			// Determine status
+			if( $settings_enabled && $hook_registered ) {
+				$status = '<span style="color: #00a32a;">✓ Active</span>';
+			} elseif ( $settings_enabled && ! $hook_registered ) {
+				$status = '<span style="color: #d63638;">✗ Disabled in Settings</span>';
+			} else {
+				$status = '<span style="color: #6c757d;">— Unknown</span>';
+			}
+			echo '<li><strong>' . esc_html( $config['label'] ) . ':</strong> ' . $status . '</li>';
 		}
 		echo '</ul>';
 	}
