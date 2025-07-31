@@ -186,7 +186,7 @@ class AOI_Admin {
 	public function register_settings() {
 		register_setting( 'aoi_settings', 'aoi_options' );
 		register_setting( 'aoi_settings', 'aff_app_key' );
-		register_setting( 'aoi_hooks_settings', 'aoi_hooks_options' );
+		register_setting( 'aoi_hooks_settings', 'aoi_hooks_options', array( $this, 'sanitize_hooks_options' ) );
 
 		add_settings_section(
 			'aoi_general_section',
@@ -324,7 +324,7 @@ class AOI_Admin {
 		$options = get_option( 'aoi_hooks_options', array() );
 		$value = isset( $options['enable_order_columns'] ) ? $options['enable_order_columns'] : '1';
 		?>
-		<input type="checkbox" id="enable_order_columns" name="aoi_hooks_options[enable_order_columns]" value="1" <?php checked( 1, $value ); ?> />
+		<input type="checkbox" id="enable_order_columns" name="aoi_hooks_options[enable_order_columns]" value="1" <?php checked( '1', $value ); ?> />
 		<label for="enable_order_columns"><?php esc_html_e( 'Add affiliate status column to WooCommerce orders list', 'affiliate-order-integration' ); ?></label>
 		<?php
 	}
@@ -336,7 +336,7 @@ class AOI_Admin {
 		$options = get_option( 'aoi_hooks_options', array() );
 		$value = isset( $options['enable_meta_boxes'] ) ? $options['enable_meta_boxes'] : '1';
 		?>
-		<input type="checkbox" id="enable_meta_boxes" name="aoi_hooks_options[enable_meta_boxes]" value="1" <?php checked( 1, $value ); ?> />
+		<input type="checkbox" id="enable_meta_boxes" name="aoi_hooks_options[enable_meta_boxes]" value="1" <?php checked( '1', $value ); ?> />
 		<label for="enable_meta_boxes"><?php esc_html_e( 'Add affiliate info meta box to order edit pages', 'affiliate-order-integration' ); ?></label>
 		<?php
 	}
@@ -873,5 +873,29 @@ class AOI_Admin {
 		    echo '<li><strong>' . esc_html( $label ) . ':</strong> ' . $status . '</li>';
 		}
 		echo '</ul>';
+	}
+
+	/**
+	 * Sanitize hooks options to handle checkbox values
+	 *
+	 * @param array $input Raw input from form.
+	 * @return array Sanitized options.
+	 */
+	public function sanitize_hooks_options( $input ) {
+		$sanitized = array();
+
+		// Get current options để merge với new values
+		$current_options = get_option( 'aoi_hooks_options', array(
+			'enable_order_columns' => '1',
+			'enable_meta_boxes' => '1'
+		) );
+
+		// Handle enable_order_columns checkbox
+		$sanitized['enable_order_columns'] = isset( $input['enable_order_columns'] ) && '1' === $input['enable_order_columns'] ? '1' : '0';
+
+		// Handle enable_meta_boxes checkbox  
+		$sanitized['enable_meta_boxes'] = isset( $input['enable_meta_boxes'] ) && '1' === $input['enable_meta_boxes'] ? '1' : '0';
+
+		return $sanitized;
 	}
 }
