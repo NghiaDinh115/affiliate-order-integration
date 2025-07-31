@@ -59,7 +59,8 @@ class AOI_Affiliate_API {
 	 */
 	private function init_hooks() {
 		add_action( 'init', array( $this, 'set_ctv_cookie' ) );
-		add_action( 'woocommerce_thankyou', array( $this, 'send_order_to_aff_hook' ) );
+		// NOTE: woocommerce_thankyou hook removed - now handled by AOI_Order_Handler with dynamic status
+		// add_action( 'woocommerce_thankyou', array( $this, 'send_order_to_aff_hook' ) );
 	}
 
 	/**

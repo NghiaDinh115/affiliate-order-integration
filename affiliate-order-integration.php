@@ -113,8 +113,8 @@ class AffiliateOrderIntegration {
 	private function init_hooks() {
 		AOI_Order_Handler::get_instance();
 		
-		// Khởi tạo Affiliate API để handle thankyou hooks
-		new AOI_Affiliate_API();
+		// NOTE: AOI_Affiliate_API init removed - no longer auto-hooks to thankyou
+		// CTV cookie handling moved to AOI_Order_Handler
 		
 		if ( is_admin() ) {
 			AOI_Admin::get_instance();

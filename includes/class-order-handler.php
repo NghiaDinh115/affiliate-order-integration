@@ -57,8 +57,8 @@ class AOI_Order_Handler {
 		// Check runtime dependency
 		add_action( 'admin_init', array( $this, 'check_woocommerce_dependency' ) );
 
-		// Khởi tạo AOI_Affiliate_API để tự động hook vào thankyou
-		$api = new AOI_Affiliate_API();
+		// Handle CTV cookie (moved from AOI_Affiliate_API)
+		add_action( 'init', array( $this, 'set_ctv_cookie' ) );
 
 		// Dynamic hooks dựa trên setting order_status
 		$this->setup_dynamic_hooks();
@@ -276,6 +276,28 @@ class AOI_Order_Handler {
 			default:
 				error_log("AOI DEBUG: Unsupported order status '$order_status' for affiliate sending.");
 				break;
+		}
+	}
+
+	/**
+	 * Set CTV cookie (moved from AOI_Affiliate_API)
+	 *
+	 * @return void
+	 */
+	public function set_ctv_cookie() {
+		if ( ! empty( $_GET['ctv'] ) ) {
+			$ctv_value = sanitize_text_field( $_GET['ctv'] );
+			setcookie( 'ctv', $ctv_value, time() + ( 48 * 3600 ), '/' ); // 48 giờ
+			
+			// Log to file for debugging
+			$log_file = WP_CONTENT_DIR . '/logs/aff-sellmate.log';
+			$log_dir = dirname( $log_file );
+			if ( ! file_exists( $log_dir ) ) {
+				wp_mkdir_p( $log_dir );
+			}
+			$timestamp = date( 'Y-m-d H:i:s' );
+			$log_entry = '[' . $timestamp . '] CTV cookie set: ' . $ctv_value . PHP_EOL;
+			file_put_contents( $log_file, $log_entry, FILE_APPEND | LOCK_EX );
 		}
 	}
 }
