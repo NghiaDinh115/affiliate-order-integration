@@ -887,14 +887,17 @@ class AOI_Admin {
 			$settings_enabled = $config['enabled_in_settings'];
 
 			// Determine status
-			if( $settings_enabled && $hook_registered ) {
+			if ( $settings_enabled && $hook_registered ) {
 				$status = '<span style="color: #00a32a;">✓ Active</span>';
-			} elseif ( $settings_enabled && ! $hook_registered ) {
+			} elseif ( ! $settings_enabled ) {
 				$status = '<span style="color: #d63638;">✗ Disabled in Settings</span>';
+			} elseif ( $settings_enabled && ! $hook_registered ) {
+				$status = '<span style="color: #f0ad4e;">⏳ Not Registered</span>';
 			} else {
 				$status = '<span style="color: #6c757d;">— Unknown</span>';
 			}
-			echo '<li><strong>' . esc_html( $config['label'] ) . ':</strong> ' . $status . '</li>';
+			
+		    echo '<li><strong>' . esc_html( $config['label'] ) . ':</strong> ' . $status . '</li>';
 		}
 		echo '</ul>';
 	}
