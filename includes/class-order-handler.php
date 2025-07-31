@@ -134,37 +134,6 @@ class AOI_Order_Handler {
 	}
 
 	/**
-	 * Chuẩn bị order data để gửi
-	 *
-	 * @param WC_Order $order WooCommerce order object.
-	 * @return array
-	 */
-	private function prepare_order_data( $order ) {
-		$items = array();
-
-		foreach ( $order->get_items() as $item ) {
-			$product = $item->get_product();
-			$items[] = array(
-				'name'     => $item->get_name(),
-				'sku'      => $product ? $product->get_sku() : '',
-				'quantity' => $item->get_quantity(),
-				'price'    => $item->get_total(),
-			);
-		}
-
-		return array(
-			'order_id'       => $order->get_id(),
-			'order_number'   => $order->get_order_number(),
-			'total'          => $order->get_total(),
-			'currency'       => $order->get_currency(),
-			'customer_email' => $order->get_billing_email(),
-			'customer_name'  => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-			'items'          => $items,
-			'order_date'     => $order->get_date_created()->format( 'Y-m-d H:i:s' ),
-		);
-	}
-
-	/**
 	 * Kiểm tra xem order đã được gửi chưa
 	 *
 	 * @param int $order_id Order ID.
@@ -259,7 +228,7 @@ class AOI_Order_Handler {
 		$options = get_option( 'aoi_options', array());
 		$order_status = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
 
-		// Hook vào status được chọn
+		// Hook vào status được chọn để GỬI
 		switch ( $order_status ) {
 			case 'processing':
 				add_action('woocommerce_order_status_processing', array( $this, 'send_order_to_affiliate' ) );
@@ -276,6 +245,76 @@ class AOI_Order_Handler {
 			default:
 				error_log("AOI DEBUG: Unsupported order status '$order_status' for affiliate sending.");
 				break;
+		}
+
+		// Hook để xử lý khi status thay đổi KHỎI target status (rollback)
+		add_action('woocommerce_order_status_changed', array( $this, 'handle_status_rollback' ), 10, 4);
+	}
+
+	/**
+	 * Xử lý khi order status rollback (ví dụ: completed → processing)
+	 *
+	 * @param int $order_id Order ID.
+	 * @param string $old_status Old status without 'wc-' prefix.
+	 * @param string $new_status New status without 'wc-' prefix.
+	 * @param WC_Order $order Order object.
+	 * @return void
+	 */
+	public function handle_status_rollback( $order_id, $old_status, $new_status, $order ) {
+		$options = get_option( 'aoi_options', array());
+		$target_status = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
+		
+		// Chỉ xử lý nếu auto_send_orders được bật
+		if ( empty( $options['auto_send_orders'] ) ) {
+			return;
+		}
+
+		// Kiểm tra nếu status thay đổi KHỎI target status
+		if ( $old_status === $target_status && $new_status !== $target_status ) {
+			$this->mark_order_as_rollback( $order_id, $old_status, $new_status );
+		}
+	}
+
+	/**
+	 * Đánh dấu order là rollback trong database
+	 *
+	 * @param int $order_id Order ID.
+	 * @param string $old_status Old status.
+	 * @param string $new_status New status.
+	 * @return void
+	 */
+	private function mark_order_as_rollback( $order_id, $old_status, $new_status ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
+
+		// Kiểm tra xem order đã được gửi chưa
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE order_id = %d", $order_id ) );
+		
+		if ( $existing && 'sent' === $existing->status ) {
+			// Cập nhật status thành 'rollback'
+			$wpdb->update(
+				$table_name,
+				array(
+					'status' => 'rollback',
+					'response_data' => wp_json_encode( array(
+						'rollback' => true,
+						'old_status' => $old_status,
+						'new_status' => $new_status,
+						'rollback_time' => current_time( 'mysql' ),
+						'message' => "Order status changed from {$old_status} to {$new_status}"
+					) ),
+					'sent_at' => current_time( 'mysql' ),
+				),
+				array( 'order_id' => $order_id ),
+				array( '%s', '%s', '%s' ),
+				array( '%d' )
+			);
+
+			// Log for debugging
+			$log_file = WP_CONTENT_DIR . '/logs/aff-sellmate.log';
+			$timestamp = date( 'Y-m-d H:i:s' );
+			$log_entry = '[' . $timestamp . '] ORDER ROLLBACK: Order #' . $order_id . ' status changed from ' . $old_status . ' to ' . $new_status . PHP_EOL;
+			file_put_contents( $log_file, $log_entry, FILE_APPEND | LOCK_EX );
 		}
 	}
 

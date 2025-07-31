@@ -626,6 +626,10 @@ class AOI_Admin {
 			if ( 'sent' === $log->status ) {
 				echo '<span style="color: #00a32a; font-weight: bold;">✓ ' . esc_html__( 'Sent', 'affiliate-order-integration' ) . '</span>';
 				echo '<br><small>' . esc_html( $log->sent_at ) . '</small>';
+			} elseif ( 'rollback' === $log->status ) {
+				echo '<span style="color: #ff8c00; font-weight: bold;">↩ ' . esc_html__( 'Rollback', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><small>' . esc_html__( 'Status changed back', 'affiliate-order-integration' ) . '</small>';
+				echo '<br><button type="button" class="button button-small resend-order" data-order-id="' . esc_attr( $order_id ) . '">' . esc_html__( 'Resend', 'affiliate-order-integration' ) . '</button>';
 			} else {
 				echo '<span style="color: #d63638; font-weight: bold;">✗ ' . esc_html__( 'Failed', 'affiliate-order-integration' ) . '</span>';
 				echo '<br><button type="button" class="button button-small resend-order" data-order-id="' . esc_attr( $order_id ) . '">' . esc_html__( 'Resend', 'affiliate-order-integration' ) . '</button>';
