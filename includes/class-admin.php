@@ -896,6 +896,14 @@ class AOI_Admin {
 		// Handle enable_meta_boxes checkbox  
 		$sanitized['enable_meta_boxes'] = isset( $input['enable_meta_boxes'] ) && '1' === $input['enable_meta_boxes'] ? '1' : '0';
 
+		// Check if settings changed to show notice
+		if ( $current_options['enable_order_columns'] !== $sanitized['enable_order_columns'] || 
+			 $current_options['enable_meta_boxes'] !== $sanitized['enable_meta_boxes'] ) {
+			add_settings_error( 'aoi_hooks_options', 'hooks_changed', 
+				__( 'Hooks settings updated successfully. Some changes may require page refresh to take effect.', 'affiliate-order-integration' ), 
+				'success' );
+		}
+
 		return $sanitized;
 	}
 }
