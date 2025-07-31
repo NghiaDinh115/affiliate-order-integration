@@ -370,9 +370,21 @@ class AOI_Affiliate_API {
 	 * Activate plugin - tạo thư mục logs
 	 */
 	public static function activate() {
+		// Check if WordPress constants are available
+		if ( ! defined( 'WP_CONTENT_DIR' ) ) {
+			return; // Skip if WP not fully loaded
+		}
+
 		$log_dir = WP_CONTENT_DIR . '/logs';
+		
+		// Use PHP mkdir instead of wp_mkdir_p to avoid dependency
 		if ( ! file_exists( $log_dir ) ) {
-			wp_mkdir_p( $log_dir );
+			if ( function_exists( 'wp_mkdir_p' ) ) {
+				wp_mkdir_p( $log_dir );
+			} else {
+				// Fallback to PHP mkdir
+				@mkdir( $log_dir, 0755, true );
+			}
 		}
 	}
 }
