@@ -291,18 +291,40 @@ class AOI_Order_Handler {
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE order_id = %d", $order_id ) );
 		
 		if ( $existing && 'sent' === $existing->status ) {
+			// Lưu lại response data gốc để không mất thông tin
+			$original_response = json_decode( $existing->response_data, true );
+			
+			// Tạo rollback data mới nhưng giữ thông tin gốc
+			$rollback_data = array(
+				'rollback' => true,
+				'old_status' => $old_status,
+				'new_status' => $new_status,
+				'rollback_time' => current_time( 'mysql' ),
+				'message' => "Order status changed from {$old_status} to {$new_status}",
+				'original_response' => $original_response, // Giữ lại response gốc
+			);
+
+			// Lưu CTV token vào order meta để không bị mất
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$ctv_token = $order->get_meta( '_aoi_ctv_token' );
+				if ( empty( $ctv_token ) ) {
+					// Nếu chưa có trong meta, lấy từ cookie hiện tại
+					$api = new AOI_Affiliate_API();
+					$current_ctv = $api->get_ctv_cookie();
+					if ( $current_ctv ) {
+						$order->update_meta_data( '_aoi_ctv_token', $current_ctv );
+						$order->save();
+					}
+				}
+			}
+			
 			// Cập nhật status thành 'rollback'
 			$wpdb->update(
 				$table_name,
 				array(
 					'status' => 'rollback',
-					'response_data' => wp_json_encode( array(
-						'rollback' => true,
-						'old_status' => $old_status,
-						'new_status' => $new_status,
-						'rollback_time' => current_time( 'mysql' ),
-						'message' => "Order status changed from {$old_status} to {$new_status}"
-					) ),
+					'response_data' => wp_json_encode( $rollback_data ),
 					'sent_at' => current_time( 'mysql' ),
 				),
 				array( 'order_id' => $order_id ),
@@ -313,7 +335,7 @@ class AOI_Order_Handler {
 			// Log for debugging
 			$log_file = WP_CONTENT_DIR . '/logs/aff-sellmate.log';
 			$timestamp = date( 'Y-m-d H:i:s' );
-			$log_entry = '[' . $timestamp . '] ORDER ROLLBACK: Order #' . $order_id . ' status changed from ' . $old_status . ' to ' . $new_status . PHP_EOL;
+			$log_entry = '[' . $timestamp . '] ORDER ROLLBACK: Order #' . $order_id . ' status changed from ' . $old_status . ' to ' . $new_status . ' (affiliate order NOT cancelled - requires manual intervention)' . PHP_EOL;
 			file_put_contents( $log_file, $log_entry, FILE_APPEND | LOCK_EX );
 		}
 	}

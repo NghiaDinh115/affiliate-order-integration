@@ -708,8 +708,8 @@ class AOI_Admin {
 		$table_name = $wpdb->prefix . 'aoi_affiliate_orders';
 		$log        = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE order_id = %d", $order_id ) );
 
-		// Lấy CTV token từ order meta
-		$ctv_token = get_post_meta( $order_id, '_aoi_ctv_token', true );
+		// Lấy CTV token từ order meta (ưu tiên order meta trước)
+		$ctv_token = $this->get_order_meta( $order_id, '_aoi_ctv_token' );
 
 		echo '<div class="aoi-affiliate-info">';
 
@@ -728,6 +728,10 @@ class AOI_Admin {
 			if ( 'sent' === $log->status ) {
 				echo '<span style="color: #00a32a;">✓ ' . esc_html__( 'Successfully sent', 'affiliate-order-integration' ) . '</span>';
 				echo '<br><small>' . esc_html__( 'Sent at:', 'affiliate-order-integration' ) . ' ' . esc_html( $log->sent_at ) . '</small>';
+			} elseif ( 'rollback' === $log->status ) {
+				echo '<span style="color: #ff8c00;">↩ ' . esc_html__( 'Status Rollback', 'affiliate-order-integration' ) . '</span>';
+				echo '<br><small>' . esc_html__( 'Order was sent but status changed back', 'affiliate-order-integration' ) . '</small>';
+				echo '<br><small style="color: #d63638;"><strong>' . esc_html__( '⚠ Affiliate order may still be active - manual cancellation needed', 'affiliate-order-integration' ) . '</strong></small>';
 			} else {
 				echo '<span style="color: #d63638;">✗ ' . esc_html__( 'Send failed', 'affiliate-order-integration' ) . '</span>';
 				echo '<br><small>' . esc_html__( 'Last attempt:', 'affiliate-order-integration' ) . ' ' . esc_html( $log->sent_at ) . '</small>';
@@ -736,9 +740,27 @@ class AOI_Admin {
 			// Response data
 			if ( $log->response_data ) {
 				$response_data = json_decode( $log->response_data, true );
-				echo '<br><details style="margin-top: 10px;"><summary>' . esc_html__( 'Response Details', 'affiliate-order-integration' ) . '</summary>';
-				echo '<pre style="background: #f5f5f5; padding: 10px; font-size: 11px; max-height: 200px; overflow-y: auto;">' . esc_html( wp_json_encode( $response_data, JSON_PRETTY_PRINT ) ) . '</pre>';
-				echo '</details>';
+				
+				// Special handling for rollback data
+				if ( isset( $response_data['rollback'] ) && $response_data['rollback'] ) {
+					echo '<br><details style="margin-top: 10px;"><summary>' . esc_html__( 'Rollback Details', 'affiliate-order-integration' ) . '</summary>';
+					echo '<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; font-size: 12px;">';
+					echo '<strong>' . esc_html__( 'Status Change:', 'affiliate-order-integration' ) . '</strong> ';
+					echo esc_html( $response_data['old_status'] ) . ' → ' . esc_html( $response_data['new_status'] ) . '<br>';
+					echo '<strong>' . esc_html__( 'Rollback Time:', 'affiliate-order-integration' ) . '</strong> ';
+					echo esc_html( $response_data['rollback_time'] ?? 'Unknown' ) . '<br>';
+					echo '<strong>' . esc_html__( 'Original Response:', 'affiliate-order-integration' ) . '</strong><br>';
+					if ( isset( $response_data['original_response'] ) ) {
+						echo '<pre style="background: #f8f9fa; padding: 5px; margin-top: 5px; font-size: 10px; max-height: 150px; overflow-y: auto;">';
+						echo esc_html( wp_json_encode( $response_data['original_response'], JSON_PRETTY_PRINT ) );
+						echo '</pre>';
+					}
+					echo '</div></details>';
+				} else {
+					echo '<br><details style="margin-top: 10px;"><summary>' . esc_html__( 'Response Details', 'affiliate-order-integration' ) . '</summary>';
+					echo '<pre style="background: #f5f5f5; padding: 10px; font-size: 11px; max-height: 200px; overflow-y: auto;">' . esc_html( wp_json_encode( $response_data, JSON_PRETTY_PRINT ) ) . '</pre>';
+					echo '</details>';
+				}
 			}
 		} elseif ( $ctv_token ) {
 				echo '<span style="color: #f0ad4e;">⏳ ' . esc_html__( 'Not sent yet', 'affiliate-order-integration' ) . '</span>';
