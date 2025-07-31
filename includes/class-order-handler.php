@@ -51,9 +51,8 @@ class AOI_Order_Handler {
 		// Khởi tạo AOI_Affiliate_API để tự động hook vào thankyou
 		$api = new AOI_Affiliate_API();
 
-		// Backup hooks cho order status changes (nếu cần)
-		add_action( 'woocommerce_order_status_completed', array( $this, 'send_order_to_affiliate' ) );
-		add_action( 'woocommerce_order_status_processing', array( $this, 'maybe_send_order_to_affiliate' ) );
+		// Dynamic hooks dựa trên setting order_status
+		$this->setup_dynamic_hooks();
 	}
 
 	/**
@@ -197,5 +196,35 @@ class AOI_Order_Handler {
 				'%s',
 			)
 		);
+	}
+
+	/**
+	 * Setup hooks động dựa trên order status
+	 *
+	 * @return void
+	 */
+	private function setup_dynamic_hooks() {
+		// Lấy các tùy chọn từ database
+		$options = get_option( 'aoi_options', array());
+		$order_status = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
+
+		// Hook vào status được chọn
+		switch ( $order_status ) {
+			case 'processing':
+				add_action('woocommerce_order_status_processing', array( $this, 'send_order_to_affiliate' ) );
+				break;
+			case 'on-hold': 
+				add_action('woocommerce_order_status_on-hold', array( $this, 'send_order_to_affiliate' ) );
+				break;
+			case 'completed':
+				add_action('woocommerce_order_status_completed', array( $this, 'send_order_to_affiliate' ) );
+				break;
+			case 'cancelled':
+				add_action('woocommerce_order_status_cancelled', array( $this, 'send_order_to_affiliate' ) );
+				break;
+			default:
+				error_log("AOI DEBUG: Unsupported order status '$order_status' for affiliate sending.");
+				break;
+		}
 	}
 }

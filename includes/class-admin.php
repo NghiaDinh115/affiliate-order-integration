@@ -304,7 +304,9 @@ class AOI_Admin {
 		?>
 		<select id="order_status" name="aoi_options[order_status]">
 			<option value="processing" <?php selected( 'processing', $value ); ?>><?php esc_html_e( 'Processing', 'affiliate-order-integration' ); ?></option>
+			<option value="on-hold" <?php selected( 'on-hold', $value ); ?>><?php esc_html_e( 'On Hold', 'affiliate-order-integration' ); ?></option>
 			<option value="completed" <?php selected( 'completed', $value ); ?>><?php esc_html_e( 'Completed', 'affiliate-order-integration' ); ?></option>
+			<option value="cancelled" <?php selected( 'cancelled', $value ); ?>><?php esc_html_e( 'Cancelled', 'affiliate-order-integration' ); ?></option>
 		</select>
 		<p class="description"><?php esc_html_e( 'Select when to send orders to affiliate.', 'affiliate-order-integration' ); ?></p>
 		<?php

@@ -126,7 +126,7 @@ Nếu website chưa có Composer, tạo file `composer.json`:
 **Cập nhật Plugin:**
 ```bash
 # Cập nhật lên version mới
-composer update sointech/affiliate-order-integration
+composer update sointech/affiliate-order-integration --no-cache --prefer-source
 
 # Hoặc cập nhật tất cả packages
 composer update
