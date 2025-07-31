@@ -30,6 +30,25 @@ define( 'AOI_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AOI_PLUGIN_VERSION', '1.0.0' );
 define( 'AOI_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
+// Check if WooCommerce is active.
+function aoi_check_requirements() {
+	if ( ! class_exists( 'WooCommerce' )) {
+		// Deactive plugin if WooCommerce is not active
+		deactivate_plugins( plugin_basename( __FILE__ ) );
+
+		// Show admin notice and exit
+		wp_die(
+			'<h1>' . esc_html__( 'Plugin Activation Error', 'affiliate-order-integration' ) . '</h1>' .
+			'<p>' . esc_html__( 'This plugin requires WooCommerce to be installed and active.', 'affiliate-order-integration' ) . '</p>' .
+			'<p><a href="' . esc_url( admin_url( 'plugins.php' ) ) . '">' . esc_html__( 'Return to plugins page', 'affiliate-order-integration' ) . '</a></p>',
+			esc_html__( 'Plugin Activation Error', 'affiliate-order-integration' ),
+			array( 'back_link' => true )
+		);
+	}
+}
+
+register_activation_hook( __FILE__, 'aoi_check_requirements' );
+
 // Composer autoloader.
 if ( file_exists( AOI_PLUGIN_PATH . 'vendor/autoload.php' ) ) {
 	require_once AOI_PLUGIN_PATH . 'vendor/autoload.php';

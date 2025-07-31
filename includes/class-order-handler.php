@@ -48,6 +48,15 @@ class AOI_Order_Handler {
 	 * @return void
 	 */
 	private function init_hooks() {
+		// Kiểm tra WooCommerce có active không
+		if ( ! $this->is_woocommerce_active() ) {
+			add_action( 'admin_notices', array( $this, 'woocommerce_missing_notice') );
+			return; // Không khởi tạo hooks nếu WooCommerce không active
+		}
+
+		// Check runtime dependency
+		add_action( 'admin_init', array( $this, 'check_woocommerce_dependency' ) );
+
 		// Khởi tạo AOI_Affiliate_API để tự động hook vào thankyou
 		$api = new AOI_Affiliate_API();
 
@@ -98,6 +107,11 @@ class AOI_Order_Handler {
 	 * @return bool
 	 */
 	private function process_order( $order_id ) {
+		// Double check trước khi gọi WooCommerce functions
+		if ( ! function_exists( 'wc_get_order' ) ) {
+			error_log( 'AOI: WooCommerce not available when trying to process order ' . $order_id );
+			return false;
+		}
 		$order = wc_get_order( $order_id );
 
 		if ( ! $order ) {
@@ -196,6 +210,43 @@ class AOI_Order_Handler {
 				'%s',
 			)
 		);
+	}
+
+	/**
+	 * Kiểm tra WooCommerce có active không
+	 *
+	 * @return bool
+	 */
+	private function is_woocommerce_active() {
+		return class_exists( 'WooCommerce' ) && function_exists( 'wc_get_order' );
+	}
+
+	/**
+	 * Hiển thị thông báo nếu WooCommerce không active
+	 *
+	 * @return void
+	 */
+	public function woocommerce_missing_notice() {
+		echo '<div class="notice notice-error"><p>';
+		echo '<strong>' . esc_html__( 'Affiliate Order Integration', 'affiliate-order-integration' ) . '</strong> ';
+		echo esc_html__( 'This plugin requires WooCommerce to be installed and active.', 'affiliate-order-integration' );
+		echo '</p></div>';
+	}
+
+	/**
+	 * Kiểm tra WooCommerce dependency trong runtime
+	 *
+	 * @return void
+	 */
+	public function check_woocommerce_dependency() {
+		if ( ! $this->is_woocommerce_active() ) {
+			add_action( 'admin_notices', array( $this, 'woocommerce_missing_notice') );
+
+			// Optional: Auto-deactivate plugin 
+			if ( current_user_can( 'activate_plugins' ) ) {
+				deactivate_plugins( plugin_basename( AOI_PLUGIN_FILE ) );
+			}
+		}
 	}
 
 	/**
