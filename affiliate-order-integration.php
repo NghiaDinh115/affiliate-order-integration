@@ -93,11 +93,19 @@ class AffiliateOrderIntegration {
 	 * @return void
 	 */
 	private function includes() {
-		// Always include required files
-		require_once AOI_PLUGIN_PATH . 'includes/class-order-handler.php';
-		require_once AOI_PLUGIN_PATH . 'includes/class-affiliate-api.php';
-		require_once AOI_PLUGIN_PATH . 'includes/class-admin.php';
-		require_once AOI_PLUGIN_PATH . 'includes/class-google-sheets.php';
+		// Always include required files with error checking
+		$required_files = array(
+			AOI_PLUGIN_PATH . 'includes/class-order-handler.php',
+			AOI_PLUGIN_PATH . 'includes/class-affiliate-api.php',
+			AOI_PLUGIN_PATH . 'includes/class-admin.php',
+			AOI_PLUGIN_PATH . 'includes/class-google-sheets.php',
+		);
+		
+		foreach ( $required_files as $file ) {
+			if ( file_exists( $file ) ) {
+				require_once $file;
+			}
+		}
 	}
 
 	/**
@@ -106,16 +114,18 @@ class AffiliateOrderIntegration {
 	 * @return void
 	 */
 	private function init_hooks() {
-		AOI_Order_Handler::get_instance();
+		// Initialize Order Handler safely
+		if ( class_exists( 'AOI_Order_Handler' ) ) {
+			AOI_Order_Handler::get_instance();
+		}
 		
-		// NOTE: AOI_Affiliate_API init removed - no longer auto-hooks to thankyou
-		// CTV cookie handling moved to AOI_Order_Handler
-
+		// Initialize Google Sheets safely
 		if ( class_exists( 'AOI_Google_Sheets' ) ) {
 			new AOI_Google_Sheets();
 		}
 		
-		if ( is_admin() ) {
+		// Initialize Admin safely
+		if ( is_admin() && class_exists( 'AOI_Admin' ) ) {
 			AOI_Admin::get_instance();
 		}
 	}
@@ -137,11 +147,17 @@ class AffiliateOrderIntegration {
 				array( 'back_link' => true )
 			);
 		}
+		
+		// Include required files before using classes
+		$this->includes();
+		
 		$this->create_tables();
 		$this->create_default_options();
 
-		// Tạo thư mục logs cho affiliate API
-		AOI_Affiliate_API::activate();
+		// Tạo thư mục logs cho affiliate API (if class exists)
+		if ( class_exists( 'AOI_Affiliate_API' ) ) {
+			AOI_Affiliate_API::activate();
+		}
 
 		flush_rewrite_rules();
 	}
