@@ -93,16 +93,7 @@ class AffiliateOrderIntegration {
 	 * @return void
 	 */
 	private function includes() {
-		// Kiểm tra nếu classes đã được autoload bởi Composer
-		if ( class_exists( 'AOI_Order_Handler' ) && 
-			 class_exists( 'AOI_Affiliate_API' ) && 
-			 class_exists( 'AOI_Admin' ) &&
-			 class_exists( 'AOI_Google_Sheets' ) ) {
-			// Classes đã được autoload, không cần include thủ công
-			return;
-		}
-
-		// Manual includes nếu không dùng Composer
+		// Always include required files
 		require_once AOI_PLUGIN_PATH . 'includes/class-order-handler.php';
 		require_once AOI_PLUGIN_PATH . 'includes/class-affiliate-api.php';
 		require_once AOI_PLUGIN_PATH . 'includes/class-admin.php';
