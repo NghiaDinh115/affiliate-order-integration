@@ -150,7 +150,112 @@ class AOI_Affiliate_API {
 		$this->log_message( 'Request data: ' . wp_json_encode( $data ) );
 
 		// Gửi request
-		return $this->send_curl_request( $data, $order->get_id() );
+		$result = $this->send_curl_request( $data, $order->get_id() );
+
+		// Nếu gửi thành công, áp dụng discount
+		if ( $result['success'] && isset( $result['data'] ) ) {
+			$affiliate_order_id = is_array( $result['data'] ) && isset( $result['data']['id'] ) ? $result['data']['id'] : ( is_numeric( $result['data'] ) ? $result['data'] : null );
+
+			if ( $affiliate_order_id ) {
+				$discount_amount = $this->get_affiliate_discount( $affiliate_order_id);
+				if ( $discount_amount ) {
+					$this->apply_affiliate_discount( $order, $discount_amount );
+				}
+			}
+		}
+		
+		return $result;
+	}
+
+	/**
+	 * Get discounted price for a product from affiliate API
+	 * 
+	 * @param int $order_id Order ID từ affiliate system.
+ 	 * @return float|null
+	 */
+	public function get_affiliate_discount( $order_id ) {
+		if ( empty( $order_id ) ) {
+			return null;
+		}
+
+		$args = array(
+			'headers' => array(
+				'Accept'  => 'application/json',
+			),
+			'timeout' => 10,
+		);
+
+		$response = wp_remote_get( $this->api_url, $args );
+		$http_code = wp_remote_retrieve_response_code( $response );
+
+		if ( is_wp_error( $response ) ) {
+			$this->log_message( 'Discount API error: ' . $response->get_error_message() );
+			return null;
+		}
+
+		if ( 200 !== $http_code ) {
+			$this->log_message( 'Discount API returned HTTP code: ' . $http_code );
+			return null;
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+		$result = json_decode( $body, true );
+
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			$this->log_message( 'Discount JSON decode error: ' . json_last_error_msg() );
+			return null;
+		}
+
+		if ( isset( $result['data'] ) && is_numeric( $result['data'] ) ) {
+			$this->log_message( 'Discount retrieved: ' . $result['data'] );
+			return (float) $result['data'];
+		}
+
+		$this->log_message( 'Invalid discount response: ' . print_r( $result, true ) );
+		return null;
+	}
+
+	/**
+	 * Apply discount to order
+	 * @param WC_Order $order Order object.
+ 	 * @param float $discount_amount Discount amount.
+	 */
+	public function apply_affiliate_discount( $order, $discount_amount ) {
+		if ( ! is_numeric( $discount_amount ) || $discount_amount <= 0 ) {
+			return;
+		}
+
+		// Kiểm tra xem đã có discount chưa
+		$has_discount = false;
+		foreach ( $order->get_fees() as $fee ) {
+			if ( $fee->get_name() === 'Affiliate Discount' ) {
+				$has_discount = true;
+				break;
+			}
+		}
+
+		if ( ! $has_discount ) {
+			// Kiểm tra WooCommerce class tồn tại
+			if ( ! class_exists( 'WC_Order_Item_Fee' ) ) {
+				$this->log_message( 'WC_Order_Item_Fee class not found' );
+				return;
+			}
+			
+			// Thêm phí Affiliate Discount mới
+			$fee = new WC_Order_Item_Fee();
+			$fee->set_name( 'Affiliate Discount' );
+			$fee->set_amount( -$discount_amount );
+			$fee->set_total( -$discount_amount );
+			$fee->set_tax_class( '' );
+			$fee->set_tax_status( 'none' );
+			$order->add_item( $fee );
+
+			// Cập nhật tổng tiền của đơn hàng
+			$order->calculate_totals();
+			$order->save();
+
+			$this->log_message( 'Affiliate discount applied: ' . $discount_amount );
+		}
 	}
 
 	/**

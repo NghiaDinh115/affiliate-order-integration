@@ -250,6 +250,30 @@ class AOI_Admin {
 			'aoi_hooks_section'
 		);
 
+		// Google Sheets settings section
+		add_settings_section(
+			'aoi_google_sheets_section',
+			__( 'Google Sheets Integration', 'affiliate-order-integration' ),
+			array( $this, 'google_sheets_section_callback' ),
+			'aoi_settings'
+		);
+
+		add_settings_field(
+			'enable_google_sheets',
+			__( 'Enable Google Sheets', 'affiliate-order-integration' ),
+			array( $this, 'enable_google_sheets_callback' ),
+			'aoi_settings',
+			'aoi_google_sheets_section'
+		);
+
+		add_settings_field(
+			'google_form_url',
+			__( 'Google Form URL', 'affiliate-order-integration' ),
+			array( $this, 'google_form_url_callback' ),
+			'aoi_settings',
+			'aoi_google_sheets_section'
+		);
+
 	}
 
 	/**
@@ -961,4 +985,36 @@ class AOI_Admin {
 
 		return $sanitized;
 	}
+
+	/**
+	 * Google Sheets section callback
+	 */
+	public function google_sheets_section_callback() {
+    	echo '<p>' . esc_html__( 'Configure Google Sheets integration settings.', 'affiliate-order-integration' ) . '</p>';
+	}
+
+	/**
+	 * Enable Google Sheets callback
+	 */
+	public function enable_google_sheets_callback() {
+		$options = get_option( 'aoi_options', array() );
+		$value = isset( $options['enable_google_sheets'] ) ? $options['enable_google_sheets'] : '1';
+		?>
+		<input type="checkbox" id="enable_google_sheets" name="aoi_options[enable_google_sheets]" value="1" <?php checked( '1', $value ); ?> />
+		<label for="enable_google_sheets"><?php esc_html_e( 'Send orders to Google Sheets', 'affiliate-order-integration' ); ?></label>
+		<?php
+	}
+
+	/**
+	 * Google Form URL callback
+	 */
+	public function google_form_url_callback() {
+		$options = get_option( 'aoi_options', array() );
+		$value = isset( $options['google_form_url'] ) ? $options['google_form_url'] : '';
+		?>
+		<input type="url" id="google_form_url" name="aoi_options[google_form_url]" value="<?php echo esc_url( $value ); ?>" class="regular-text" />
+		<p class="description"><?php esc_html_e( 'Enter your Google Form URL to send orders.', 'affiliate-order-integration' ); ?></p>
+		<?php
+	}
+
 }
