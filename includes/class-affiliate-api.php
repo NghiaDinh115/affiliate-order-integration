@@ -174,6 +174,8 @@ class AOI_Affiliate_API {
  	 * @return float|null
 	 */
 	public function get_affiliate_discount( $order_id ) {
+		$api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByOrderId/' . $order_id;
+
 		if ( empty( $order_id ) ) {
 			return null;
 		}
@@ -185,7 +187,7 @@ class AOI_Affiliate_API {
 			'timeout' => 10,
 		);
 
-		$response = wp_remote_get( $this->api_url, $args );
+		$response = wp_remote_get( $api_url, $args );
 		$http_code = wp_remote_retrieve_response_code( $response );
 
 		if ( is_wp_error( $response ) ) {

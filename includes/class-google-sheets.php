@@ -30,7 +30,7 @@ class AOI_Google_Sheets {
         $options = get_option( 'aoi_options', array() );
         $this->google_form_url = isset( $options['google_form_url'] ) && !empty( $options['google_form_url'] ) 
             ? $options['google_form_url'] 
-            : 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSdNC4V_dYQhKBBfT8el5tSJFoM_-aHA4hqHMUamZvv4n1DiJQ/formResponse';
+            : 'https://docs.google.com/forms/d/e/1FAIpQLSc2ap8yeDs2nLZNAw6EKlZxt2w3imV8tfIVj7b-zDi1S1Fq4Q/viewform';
         
         $this->init_hooks();
     }
@@ -106,7 +106,7 @@ class AOI_Google_Sheets {
 
         // Send data to Google Sheets
         // Temporarily disabled - customer's sheet, cannot test
-        // $this->send_to_google_form( $fields );
+        $this->send_to_google_form( $fields );
     }
 
     /**
