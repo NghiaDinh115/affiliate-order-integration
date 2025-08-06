@@ -174,7 +174,7 @@ class AOI_Affiliate_API {
  	 * @return float|null
 	 */
 	public function get_affiliate_discount( $order_id ) {
-		$api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByOrderId/' . $order_id;
+		$api_url = 'http://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByOrderId/' . $order_id;
 
 		if ( empty( $order_id ) ) {
 			return null;
