@@ -274,6 +274,38 @@ class AOI_Admin {
 			'aoi_google_sheets_section'
 		);
 
+		// Discount Display settings section
+		add_settings_section(
+			'aoi_discount_display_section',
+			__( 'Discount Display Configuration', 'affiliate-order-integration' ),
+			array( $this, 'discount_display_section_callback' ),
+			'aoi_settings'
+		);
+
+		add_settings_field(
+			'enable_discount_display',
+			__( 'Enable Custom Discount Display', 'affiliate-order-integration' ),
+			array( $this, 'enable_discount_display_callback' ),
+			'aoi_settings',
+			'aoi_discount_display_section'
+		);
+
+		add_settings_field(
+			'discount_dom_selector',
+			__ ('DOM Selector for Discount Display', 'affiliate-order-integration'),
+			array( $this, 'discount_dom_selector_callback' ),
+			'aoi_settings',
+			'aoi_discount_display_section'
+		);
+
+		add_settings_field(
+			'discount_message_template',
+			__( 'Discount Message Template', 'affiliate-order-integration' ),
+			array( $this, 'discount_message_template_callback' ),
+			'aoi_settings',
+			'aoi_discount_display_section'
+		);
+
 	}
 
 	/**
@@ -1017,4 +1049,67 @@ class AOI_Admin {
 		<?php
 	}
 
+	/**
+	 * Discount Display section callback
+	 */
+	public function discount_display_section_callback() {
+		echo '<p>' . esc_html__( 'Configure how discounts are displayed in your website.', 'affiliate-order-integration' ) . '</p>';
+		echo '<p><small>' . esc_html__( 'Use DOM selector to inject discount messages into different themes/layouts.', 'affiliate-order-integration' ) . '</small></p>';
+	}
+
+	/**
+	 * Enable discount display callback
+	 */
+	public function enable_discount_display_callback() {
+		$options = get_option( 'aoi_options', array() );
+		$value = isset( $options['enable_discount_display'] ) ? $options['enable_discount_display'] : '0';
+		?>
+		<input type="checkbox" id="enable_discount_display" name="aoi_options[enable_discount_display]" value="1" <?php checked( '1', $value ); ?> /> 
+		<label for="enable_discount_display"><?php esc_html_e( 'Enable custom discount display on frontend', 'affiliate-order-integration' ); ?></label>
+		<p class="description"><?php esc_html_e( 'When enabled, discounts will be displayed using the DOM selector and template below.', 'affiliate-order-integration' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Discount DOM selector callback
+	 */
+	public function discount_dom_selector_callback() {
+		$options = get_option( 'aoi_options', array() );
+		$value = isset( $options['discount_dom_selector']) ? $options['discount_dom_selector'] : '.woocommerce-order-overview';
+		?>
+		<input type="text" id="discount_dom_selector" name="aoi_options[discount_dom_selector]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
+		<p class="description">
+			<?php esc_html_e( 'CSS selector where discount messages will be inserted.', 'affiliate-order-integration' ); ?>
+			<strong><?php esc_html_e( 'Example:', 'affiliate-order-integration' ); ?></strong><br>
+			• <code>.woocommerce-order-overview</code> - WooCommerce order summary<br>
+			• <code>.woocommerce-thankyou-order-details</code> - Thank you page details<br>
+			• <code>#main-content</code> - Main content area<br>
+			• <code>.entry-content</code> - Post/page content<br>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Discount message template callback
+	 */	
+	public function discount_message_template_callback() {
+		$options = get_option( 'aoi_options', array() );
+		$default_template = '<div class="woocommerce-message affiliate-discount-notice" style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; margin: 20px 0; border-radius: 5px;">
+		<h3 style="margin-top: 0; color: #155724;">🎉 Affiliate Discount Applied!</h3>
+		<p style="margin: 10px 0 0 0; color: #155724;">
+			You saved: <strong>{discount_amount}</strong> thanks to our affiliate program!
+		</p>
+	</div>';
+	    $value = isset( $options['discount_message_template'] ) ? $options['discount_message_template'] : $default_template;
+		?>
+		<textarea id="discount_message_template" name="aoi_options[discount_message_template]" rows="8" class="large-text code" style="font-family: monospace;"><?php echo esc_textarea( $value ); ?></textarea>
+		<p class="description">
+			<?php esc_html_e( 'HTML template for discount message. Available placeholders:', 'affiliate-order-integration' ); ?>
+			• <code>{discount_amount}</code> - Formatted discount amount (e.g., "20.000 vnd")<br>
+			• <code>{discount_raw}</code> - discount_raw number (e.g., "10")<br>
+			• <code>{order_id}</code> - Order ID<br>
+			<strong><?php esc_html_e( 'Note:', 'affiliate-order-integration' ); ?></strong><br>
+		</p>
+		<?php
+	}
 }

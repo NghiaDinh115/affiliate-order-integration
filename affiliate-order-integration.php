@@ -99,6 +99,7 @@ class AffiliateOrderIntegration {
 			AOI_PLUGIN_PATH . 'includes/class-affiliate-api.php',
 			AOI_PLUGIN_PATH . 'includes/class-admin.php',
 			AOI_PLUGIN_PATH . 'includes/class-google-sheets.php',
+			AOI_PLUGIN_PATH . 'includes/class-discount-display.php',
 		);
 		
 		foreach ( $required_files as $file ) {
