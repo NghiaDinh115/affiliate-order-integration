@@ -157,9 +157,9 @@ class AOI_Affiliate_API {
 			$affiliate_order_id = is_array( $result['data'] ) && isset( $result['data']['id'] ) ? $result['data']['id'] : ( is_numeric( $result['data'] ) ? $result['data'] : null );
 
 			if ( $affiliate_order_id ) {
-				$discount_amount = $this->get_affiliate_discount( $affiliate_order_id);
-				if ( $discount_amount ) {
-					$this->apply_affiliate_discount( $order, $discount_amount );
+				$percent_discount = $this->get_affiliate_discount( $ctv_link_id );
+				if ( $percent_discount ) {
+					$this->apply_affiliate_discount( $order, $percent_discount );
 				}
 			}
 		}
@@ -170,13 +170,13 @@ class AOI_Affiliate_API {
 	/**
 	 * Get discounted price for a product from affiliate API
 	 * 
-	 * @param int $order_id Order ID từ affiliate system.
+	 * @param int $link_id Link ID từ affiliate system.
  	 * @return float|null
 	 */
-	public function get_affiliate_discount( $order_id ) {
-		$api_url = 'http://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByOrderId/' . $order_id;
+	public function get_affiliate_discount( $link_id ) {
+		$api_url = 'http://dev-aff-api.sellmate.cloud/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
 
-		if ( empty( $order_id ) ) {
+		if ( empty( $link_id ) ) {
 			return null;
 		}
 
@@ -220,12 +220,18 @@ class AOI_Affiliate_API {
 	/**
 	 * Apply discount to order
 	 * @param WC_Order $order Order object.
- 	 * @param float $discount_amount Discount amount.
+ 	 * @param float $percent_discount Discount amount.
 	 */
-	public function apply_affiliate_discount( $order, $discount_amount ) {
-		if ( ! is_numeric( $discount_amount ) || $discount_amount <= 0 ) {
+	public function apply_affiliate_discount( $order, $percent_discount ) {
+		if ( ! is_numeric( $percent_discount ) || $percent_discount <= 0 || $percent_discount > 100 ) {
 			return;
 		}
+
+		$total_before_discount = floatval( $order->get_subtotal() );
+		$discount_money = $total_before_discount * ( $percent_discount / 100 );
+
+		// Log để debug
+		$this->log_message("Order subtotal: $total_before_discount, Discount %: $percent_discount, Actual discount: $discount_money");
 
 		// Kiểm tra xem đã có discount chưa
 		$has_discount = false;
@@ -246,8 +252,8 @@ class AOI_Affiliate_API {
 			// Thêm phí Affiliate Discount mới
 			$fee = new WC_Order_Item_Fee();
 			$fee->set_name( 'Affiliate Discount' );
-			$fee->set_amount( -$discount_amount );
-			$fee->set_total( -$discount_amount );
+			$fee->set_amount( -$discount_money );
+			$fee->set_total( -$discount_money );
 			$fee->set_tax_class( '' );
 			$fee->set_tax_status( 'none' );
 			$order->add_item( $fee );
@@ -256,7 +262,7 @@ class AOI_Affiliate_API {
 			$order->calculate_totals();
 			$order->save();
 
-			$this->log_message( 'Affiliate discount applied: ' . $discount_amount );
+			$this->log_message( 'Affiliate discount applied: ' . $percent_discount );
 		}
 	}
 

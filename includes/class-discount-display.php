@@ -69,7 +69,7 @@ class AOI_Discount_Discount {
         ?>
         <script>
             jQuery(document).ready(function($) {
-                var $target = $ ('<?php echo esc_js( $selector ); ?>');
+                var $target = $('<?php echo esc_js( $selector ); ?>');
                 if ($target.lenght > 0) {
                     $target.after('<?php echo addslashes( $message ); ?>');
                 }
