@@ -144,6 +144,14 @@ class AOI_Affiliate_API {
 			'cuor_affiliate_id' => $ctv_id,
 			'cuor_customer_id'  => $this->partner_id,
 			'link_id'           => $ctv_link_id,
+			'customer_infor'    => wp_json_encode( array(
+				'name'    => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+				'phone'   => $order->get_billing_phone(),
+				'address' => trim( $order->get_billing_address_1() . ', ' .
+							$order->get_billing_city() . ', ' .
+							$order->get_billing_state() . ', ' .
+							$order->get_billing_postcode() )
+			), JSON_UNESCAPED_UNICODE ),
 		);
 
 		// Log request data
@@ -339,9 +347,14 @@ class AOI_Affiliate_API {
 					'sku'      => 'TEST-001',
 				),
 			),
-			'cuor_affiliate_id' => 999999,
+			'cuor_affiliate_id' => 2,
 			'cuor_customer_id'  => $this->partner_id,
-			'link_id'           => 0,
+			'link_id'           => 39,
+			'customer_infor'    => wp_json_encode( array(
+				'name'    => 'Test Customer',
+				'phone'   => '0123456789',
+				'address' => 'Test Address, Test City, Test State, 12345'
+			), JSON_UNESCAPED_UNICODE ),
 		);
 
 		$this->log_message( 'Testing connection with data: ' . wp_json_encode( $test_data ) );
