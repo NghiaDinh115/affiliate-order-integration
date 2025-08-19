@@ -40,7 +40,10 @@ class AOI_Admin {
 	private function __construct() {
 		$this->init_hooks();
 		// Debug mode - uncomment để debug
-		// add_action( 'admin_notices', array( $this, 'debug_admin_notices' ) );
+		add_action( 'admin_notices', array( $this, 'debug_admin_notices' ) );
+		
+		// Debug save process
+		add_action( 'updated_option', array( $this, 'debug_option_update' ), 10, 3 );
 	}
 
 	/**
@@ -184,7 +187,7 @@ class AOI_Admin {
 	 * Đăng ký settings
 	 */
 	public function register_settings() {
-		register_setting( 'aoi_settings', 'aoi_options' );
+		register_setting( 'aoi_settings', 'aoi_options', array( $this, 'sanitize_aoi_options' ) );
 		register_setting( 'aoi_settings', 'aff_app_key' );
 		register_setting( 'aoi_hooks_settings', 'aoi_hooks_options', array( $this, 'sanitize_hooks_options' ) );
 
@@ -274,36 +277,36 @@ class AOI_Admin {
 			'aoi_google_sheets_section'
 		);
 
-		// Discount Display settings section
+		// Custom JavaScript Display settings section
 		add_settings_section(
-			'aoi_discount_display_section',
-			__( 'Discount Display Configuration', 'affiliate-order-integration' ),
-			array( $this, 'discount_display_section_callback' ),
+			'aoi_custom_js_display_section',
+			__( 'Custom JavaScript Discount Display', 'affiliate-order-integration' ),
+			array( $this, 'custom_js_display_section_callback' ),
 			'aoi_settings'
 		);
 
 		add_settings_field(
-			'enable_discount_display',
-			__( 'Enable Custom Discount Display', 'affiliate-order-integration' ),
-			array( $this, 'enable_discount_display_callback' ),
+			'enable_custom_js_display',
+			__( 'Enable Custom JavaScript Display', 'affiliate-order-integration' ),
+			array( $this, 'enable_custom_js_display_callback' ),
 			'aoi_settings',
-			'aoi_discount_display_section'
+			'aoi_custom_js_display_section'
 		);
 
 		add_settings_field(
-			'discount_dom_selector',
-			__ ('DOM Selector for Discount Display', 'affiliate-order-integration'),
-			array( $this, 'discount_dom_selector_callback' ),
+			'custom_js_code',
+			__( 'Custom JavaScript Code', 'affiliate-order-integration' ),
+			array( $this, 'custom_js_code_callback' ),
 			'aoi_settings',
-			'aoi_discount_display_section'
+			'aoi_custom_js_display_section'
 		);
 
 		add_settings_field(
-			'discount_message_template',
-			__( 'Discount Message Template', 'affiliate-order-integration' ),
-			array( $this, 'discount_message_template_callback' ),
+			'custom_js_pages',
+			__( 'Pages to Load JavaScript', 'affiliate-order-integration' ),
+			array( $this, 'custom_js_pages_callback' ),
 			'aoi_settings',
-			'aoi_discount_display_section'
+			'aoi_custom_js_display_section'
 		);
 
 	}
@@ -346,8 +349,9 @@ class AOI_Admin {
 		$options = get_option( 'aoi_options', array() );
 		$value   = isset( $options['auto_send_orders'] ) ? $options['auto_send_orders'] : '1';
 		?>
-		<input type="checkbox" id="auto_send_orders" name="aoi_options[auto_send_orders]" value="1" <?php checked( 1, $value ); ?> />
+		<input type="checkbox" id="auto_send_orders" name="aoi_options[auto_send_orders]" value="1" <?php checked( '1', $value ); ?> />
 		<label for="auto_send_orders"><?php esc_html_e( 'Automatically send orders to affiliate', 'affiliate-order-integration' ); ?></label>
+		<p class="description"><?php esc_html_e( 'When enabled, orders will be automatically sent to affiliate network when reaching the selected status.', 'affiliate-order-integration' ); ?></p>
 		<?php
 	}
 
@@ -903,6 +907,23 @@ class AOI_Admin {
 	}
 
 	/**
+	 * Debug option updates to track when aoi_options is saved
+	 */
+	public function debug_option_update( $option_name, $old_value, $new_value ) {
+		if ( $option_name === 'aoi_options' ) {
+			error_log( '🔧 AOI OPTION UPDATE: aoi_options was saved!' );
+			error_log( '🔧 AOI: Old custom_js_code exists: ' . ( isset( $old_value['custom_js_code'] ) ? 'YES' : 'NO' ) );
+			error_log( '🔧 AOI: New custom_js_code exists: ' . ( isset( $new_value['custom_js_code'] ) ? 'YES' : 'NO' ) );
+			
+			if ( isset( $new_value['custom_js_code'] ) ) {
+				error_log( '🔧 AOI: New custom_js_code length: ' . strlen( $new_value['custom_js_code'] ) );
+				error_log( '🔧 AOI: New custom_js_code contains "Test Badge": ' . ( strpos( $new_value['custom_js_code'], 'Test Badge' ) !== false ? 'YES' : 'NO' ) );
+				error_log( '🔧 AOI: New custom_js_code preview: ' . substr( $new_value['custom_js_code'], 0, 150 ) . '...' );
+			}
+		}
+	}
+
+	/**
 	 * Setup order columns khi current_screen được load
 	 */
 	public function setup_order_columns_on_screen( $screen ) {
@@ -987,6 +1008,85 @@ class AOI_Admin {
 	}
 
 	/**
+	 * Sanitize aoi options to handle checkbox values and other inputs
+	 *
+	 * @param array $input Raw input from form.
+	 * @return array Sanitized options.
+	 */
+	public function sanitize_aoi_options( $input ) {
+		// Debug what's being submitted
+		error_log( '🔧 AOI SANITIZE: Function called with input keys: ' . implode( ', ', array_keys( $input ) ) );
+		if ( isset( $input['custom_js_code'] ) ) {
+			error_log( '🔧 AOI SANITIZE: custom_js_code input preview: ' . substr( $input['custom_js_code'], 0, 100 ) . '...' );
+		}
+		
+		$sanitized = array();
+
+		// Get current options để merge với new values
+		$current_options = get_option( 'aoi_options', array() );
+
+		// Handle partner_id - integer, minimum 1
+		$sanitized['partner_id'] = isset( $input['partner_id'] ) ? max( 1, intval( $input['partner_id'] ) ) : 1;
+
+		// Handle auto_send_orders checkbox - 1 or 0 as string
+		$sanitized['auto_send_orders'] = isset( $input['auto_send_orders'] ) && '1' === $input['auto_send_orders'] ? '1' : '0';
+
+		// Handle order_status - whitelist allowed values
+		$allowed_statuses = array( 'processing', 'on-hold', 'completed', 'cancelled' );
+		$sanitized['order_status'] = isset( $input['order_status'] ) && in_array( $input['order_status'], $allowed_statuses ) 
+			? $input['order_status'] 
+			: 'completed';
+
+		// Handle enable_google_sheets checkbox
+		$sanitized['enable_google_sheets'] = isset( $input['enable_google_sheets'] ) && '1' === $input['enable_google_sheets'] ? '1' : '0';
+
+		// Handle google_form_url - validate URL
+		$sanitized['google_form_url'] = isset( $input['google_form_url'] ) ? esc_url_raw( $input['google_form_url'] ) : '';
+
+		// Handle enable_custom_js_display checkbox
+		$sanitized['enable_custom_js_display'] = isset( $input['enable_custom_js_display'] ) && '1' === $input['enable_custom_js_display'] ? '1' : '0';
+
+		// Handle custom_js_code - allow JavaScript code but escape for storage
+		if ( isset( $input['custom_js_code'] ) ) {
+			$raw_code = $input['custom_js_code'];
+			$sanitized['custom_js_code'] = wp_unslash( $raw_code );
+			
+			// Debug logging for custom JS code save
+			error_log( '🔧 AOI SAVE DEBUG: Custom JS Code received' );
+			error_log( '🔧 AOI: Raw input length: ' . strlen( $raw_code ) );
+			error_log( '🔧 AOI: After wp_unslash length: ' . strlen( $sanitized['custom_js_code'] ) );
+			error_log( '🔧 AOI: Contains "Test Badge": ' . ( strpos( $sanitized['custom_js_code'], 'Test Badge' ) !== false ? 'YES' : 'NO' ) );
+			error_log( '🔧 AOI: Preview of saved code: ' . substr( $sanitized['custom_js_code'], 0, 200 ) . '...' );
+			error_log( '🔧 AOI: MD5 hash of saved code: ' . md5( $sanitized['custom_js_code'] ) );
+		} else {
+			$sanitized['custom_js_code'] = '';
+			error_log( '🔧 AOI SAVE DEBUG: No custom_js_code in input, setting to empty' );
+		}
+
+		// Handle custom_js_pages - array of allowed page types
+		$allowed_pages = array( 'checkout', 'thankyou', 'cart' );
+		$sanitized['custom_js_pages'] = array();
+		if ( isset( $input['custom_js_pages'] ) && is_array( $input['custom_js_pages'] ) ) {
+			foreach ( $input['custom_js_pages'] as $page ) {
+				if ( in_array( $page, $allowed_pages ) ) {
+					$sanitized['custom_js_pages'][] = $page;
+				}
+			}
+		}
+
+		// Check if auto_send_orders setting changed to show notice
+		if ( isset( $current_options['auto_send_orders'] ) && 
+			 $current_options['auto_send_orders'] !== $sanitized['auto_send_orders'] ) {
+			$status = $sanitized['auto_send_orders'] === '1' ? 'enabled' : 'disabled';
+			add_settings_error( 'aoi_options', 'auto_send_changed', 
+				sprintf( __( 'Auto send orders has been %s successfully.', 'affiliate-order-integration' ), $status ), 
+				'success' );
+		}
+
+		return $sanitized;
+	}
+
+	/**
 	 * Sanitize hooks options to handle checkbox values
 	 *
 	 * @param array $input Raw input from form.
@@ -1050,65 +1150,223 @@ class AOI_Admin {
 	}
 
 	/**
-	 * Discount Display section callback
+	 * Custom JavaScript Display section callback
 	 */
-	public function discount_display_section_callback() {
-		echo '<p>' . esc_html__( 'Configure how discounts are displayed in your website.', 'affiliate-order-integration' ) . '</p>';
-		echo '<p><small>' . esc_html__( 'Use DOM selector to inject discount messages into different themes/layouts.', 'affiliate-order-integration' ) . '</small></p>';
+	public function custom_js_display_section_callback() {
+		echo '<p>' . esc_html__( 'Configure custom JavaScript code to display affiliate discounts anywhere on your website.', 'affiliate-order-integration' ) . '</p>';
+		echo '<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 10px 0; border-radius: 5px;">';
+		echo '<h4 style="margin-top: 0;">📘 ' . esc_html__( 'Developer Guide', 'affiliate-order-integration' ) . '</h4>';
+		echo '<p><strong>' . esc_html__( 'Global Variable Available:', 'affiliate-order-integration' ) . '</strong> <code>window.aoiDiscountData</code></p>';
+		echo '<ul style="margin: 10px 0;">';
+		echo '<li><code>aoiDiscountData.hasDiscount</code> - Boolean (true if discount available)</li>';
+		echo '<li><code>aoiDiscountData.discountPercent</code> - Number (e.g., 15 for 15%)</li>';
+		echo '<li><code>aoiDiscountData.discountAmount</code> - Number (calculated discount in VND)</li>';
+		echo '<li><code>aoiDiscountData.formattedAmount</code> - String (formatted with currency)</li>';
+		echo '<li><code>aoiDiscountData.linkId</code> - String (affiliate link ID)</li>';
+		echo '</ul>';
+		echo '<p><strong>' . esc_html__( 'Example:', 'affiliate-order-integration' ) . '</strong></p>';
+		echo '<pre style="background: #f8f9fa; padding: 10px; border-radius: 3px; font-size: 12px;">if (window.aoiDiscountData && window.aoiDiscountData.hasDiscount) {
+		document.querySelector(\'.my-selector\').innerHTML = 
+			\'&lt;div&gt;You save: \' + window.aoiDiscountData.formattedAmount + \'&lt;/div&gt;\';
+	}</pre>';
+		echo '</div>';
 	}
 
 	/**
-	 * Enable discount display callback
+	 * Enable custom JavaScript display callback
 	 */
-	public function enable_discount_display_callback() {
+	public function enable_custom_js_display_callback() {
 		$options = get_option( 'aoi_options', array() );
-		$value = isset( $options['enable_discount_display'] ) ? $options['enable_discount_display'] : '0';
+		$value = isset( $options['enable_custom_js_display'] ) ? $options['enable_custom_js_display'] : '0';
 		?>
-		<input type="checkbox" id="enable_discount_display" name="aoi_options[enable_discount_display]" value="1" <?php checked( '1', $value ); ?> /> 
-		<label for="enable_discount_display"><?php esc_html_e( 'Enable custom discount display on frontend', 'affiliate-order-integration' ); ?></label>
-		<p class="description"><?php esc_html_e( 'When enabled, discounts will be displayed using the DOM selector and template below.', 'affiliate-order-integration' ); ?></p>
+		<input type="checkbox" id="enable_custom_js_display" name="aoi_options[enable_custom_js_display]" value="1" <?php checked( '1', $value ); ?> />
+		<label for="enable_custom_js_display"><?php esc_html_e( 'Enable custom JavaScript discount display', 'affiliate-order-integration' ); ?></label>
+		<p class="description"><?php esc_html_e( 'When enabled, your custom JavaScript code will be loaded on selected pages with discount data available.', 'affiliate-order-integration' ); ?></p>
 		<?php
 	}
 
 	/**
-	 * Discount DOM selector callback
+	 * Custom JavaScript code callback
 	 */
-	public function discount_dom_selector_callback() {
+	public function custom_js_code_callback() {
 		$options = get_option( 'aoi_options', array() );
-		$value = isset( $options['discount_dom_selector']) ? $options['discount_dom_selector'] : '.woocommerce-order-overview';
-		?>
-		<input type="text" id="discount_dom_selector" name="aoi_options[discount_dom_selector]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
-		<p class="description">
-			<?php esc_html_e( 'CSS selector where discount messages will be inserted.', 'affiliate-order-integration' ); ?>
-			<strong><?php esc_html_e( 'Example:', 'affiliate-order-integration' ); ?></strong><br>
-			• <code>.woocommerce-order-overview</code> - WooCommerce order summary<br>
-			• <code>.woocommerce-thankyou-order-details</code> - Thank you page details<br>
-			• <code>#main-content</code> - Main content area<br>
-			• <code>.entry-content</code> - Post/page content<br>
-		</p>
-		<?php
+		$default_code = '// 🎨 Modern Discount Display Script with Cart Update Detection
+
+		// Validate và display initial discount data
+		if (window.aoiDiscountData) {
+			// Validate data structure
+			const requiredFields = ["hasDiscount", "formattedAmount", "discountPercent"];
+			let isValidData = true;
+			
+			for (let field of requiredFields) {
+				if (!(field in window.aoiDiscountData)) {
+					isValidData = false;
+				}
+			}
+			
+			if (window.aoiDiscountData.hasDiscount && isValidData) {                
+				// Create modern floating discount badge
+				const discountBadge = document.createElement("div");
+				discountBadge.className = "aoi-modern-discount-badge";
+				discountBadge.style.cssText = `
+					position: fixed;
+					top: 80px;
+					right: 30px;
+					background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+					color: white;
+					padding: 20px 25px;
+					border-radius: 15px;
+					box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+					z-index: 9998;
+					max-width: 320px;
+					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+					transform: translateX(400px);
+					transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+					cursor: pointer;
+					border: 2px solid rgba(255,255,255,0.2);
+				`;
+				
+				discountBadge.innerHTML = `
+					<div style="display: flex; align-items: center; gap: 15px;">
+						<div style="font-size: 32px;">💰</div>
+						<div>
+							<h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">
+								Affiliate Savings!
+							</h4>
+							<p style="margin: 0; font-size: 14px; opacity: 0.95;">
+								Save <strong>${window.aoiDiscountData.formattedAmount}</strong><br>
+								<span style="font-size: 12px;">(${window.aoiDiscountData.discountPercent}% discount applied)</span>
+							</p>
+						</div>
+						<div style="margin-left: auto; font-size: 20px; opacity: 0.7;">×</div>
+					</div>
+				`;
+				
+				// Add hover effects
+				discountBadge.addEventListener("mouseenter", function() {
+					this.style.transform = "translateX(0) scale(1.05)";
+					this.style.boxShadow = "0 15px 40px rgba(255, 107, 107, 0.4)";
+				});
+				
+				discountBadge.addEventListener("mouseleave", function() {
+					this.style.transform = "translateX(0) scale(1)";
+					this.style.boxShadow = "0 10px 30px rgba(255, 107, 107, 0.3)";
+				});
+				
+				// Click to close
+				discountBadge.addEventListener("click", function() {
+					this.style.transform = "translateX(400px)";
+					setTimeout(() => this.remove(), 600);
+				});
+				
+				// Insert and animate in
+				document.body.appendChild(discountBadge);
+				
+				// Animate in after small delay
+				setTimeout(() => {
+					discountBadge.style.transform = "translateX(0)";
+				}, 500);
+				
+				// Auto-hide after 10 seconds
+				setTimeout(() => {
+					if (document.body.contains(discountBadge)) {
+						discountBadge.style.transform = "translateX(400px)";
+						setTimeout(() => discountBadge.remove(), 600);
+					}
+				}, 10000);
+			}
+		}';
+
+
+	// Kiểm tra xem đã có options chưa, nếu không thì sử dụng default_code
+	$options = get_option( 'aoi_options', array() );
+	
+	// DEBUG: So sánh với frontend
+	error_log( '🔧 AOI ADMIN: Loading options for textarea display' );
+	error_log( '🔧 AOI ADMIN: $options keys: ' . implode( ', ', array_keys( $options ) ) );
+	error_log( '🔧 AOI ADMIN: isset($options[\'custom_js_code\']): ' . ( isset( $options['custom_js_code'] ) ? 'TRUE' : 'FALSE' ) );
+	
+	if ( isset( $options['custom_js_code'] ) ) {
+		error_log( '🔧 AOI ADMIN: custom_js_code length: ' . strlen( $options['custom_js_code'] ) );
+		error_log( '🔧 AOI ADMIN: Contains "Test Badge": ' . ( strpos( $options['custom_js_code'], 'Test Badge' ) !== false ? 'YES' : 'NO' ) );
+	}
+
+	// Lấy options và gán default_code sau khi đã khai báo xong
+	$value = isset( $options['custom_js_code'] ) ? $options['custom_js_code'] : $default_code;
+    ?>
+    <textarea id="custom_js_code" name="aoi_options[custom_js_code]" rows="20" class="large-text code" style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.4;"><?php echo esc_textarea( $value ); ?></textarea>
+    
+    <!-- Reset Button -->
+    <p style="margin-top: 10px;">
+        <button type="button" id="reset_js_code" class="button button-secondary" style="margin-right: 15px;">
+            🔄 <?php esc_html_e( 'Reset to Default Code', 'affiliate-order-integration' ); ?>
+        </button>
+        <span id="reset_status" style="color: #46b450; display: none;">✅ Code reset to default!</span>
+    </p>
+    
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        $('#reset_js_code').on('click', function() {
+            if (confirm('Are you sure you want to reset the JavaScript code to default? This will remove all your custom modifications.')) {
+                // Set textarea to default code
+                $('#custom_js_code').val(<?php echo wp_json_encode( $default_code ); ?>);
+                
+                // Show status
+                $('#reset_status').show().delay(3000).fadeOut();
+                
+                // Auto-scroll to top of textarea
+                $('#custom_js_code')[0].scrollTop = 0;
+                
+                // Focus textarea
+                $('#custom_js_code').focus();
+            }
+        });
+        
+        // Add version timestamp to track changes
+        $('#custom_js_code').on('input', function() {
+            $(this).attr('data-modified', new Date().getTime());
+        });
+    });
+    </script>
+    
+    <p class="description">
+        <strong><?php esc_html_e( 'Write your custom JavaScript code here.', 'affiliate-order-integration' ); ?></strong><br>
+        • <?php esc_html_e( 'Use jQuery if available: ', 'affiliate-order-integration' ); ?><code>jQuery(document).ready(function($) { ... });</code><br>
+        • <?php esc_html_e( 'Access discount data via: ', 'affiliate-order-integration' ); ?><code>window.aoiDiscountData</code><br>
+        • <?php esc_html_e( 'Code will execute after page load and discount data is available', 'affiliate-order-integration' ); ?><br>
+        • <?php esc_html_e( 'Test your code thoroughly on different themes/layouts', 'affiliate-order-integration' ); ?><br>
+        • <strong style="color: #d63384;"><?php esc_html_e( 'Click "Reset to Default Code" to restore original badge functionality', 'affiliate-order-integration' ); ?></strong>
+    </p>
+    <?php
 	}
 
 	/**
-	 * Discount message template callback
-	 */	
-	public function discount_message_template_callback() {
+	 * Custom JavaScript pages callback  
+	 */
+	public function custom_js_pages_callback() {
 		$options = get_option( 'aoi_options', array() );
-		$default_template = '<div class="woocommerce-message affiliate-discount-notice" style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; margin: 20px 0; border-radius: 5px;">
-		<h3 style="margin-top: 0; color: #155724;">🎉 Affiliate Discount Applied!</h3>
-		<p style="margin: 10px 0 0 0; color: #155724;">
-			You saved: <strong>{discount_amount}</strong> thanks to our affiliate program!
-		</p>
-	</div>';
-	    $value = isset( $options['discount_message_template'] ) ? $options['discount_message_template'] : $default_template;
+		$value = isset( $options['custom_js_pages'] ) ? $options['custom_js_pages'] : array( 'checkout', 'thankyou', 'cart' );
+		
+		$available_pages = array(
+			'checkout' => __( 'Checkout Pages', 'affiliate-order-integration' ),
+			'thankyou' => __( 'Thank You / Order Received Pages', 'affiliate-order-integration' ), 
+			'cart' => __( 'Cart Pages', 'affiliate-order-integration' )
+		);
+		
+		echo '<fieldset>';
+		foreach ( $available_pages as $page_key => $page_label ) {
+			$checked = in_array( $page_key, (array) $value ) ? 'checked="checked"' : '';
+			echo '<label style="display: block; margin: 5px 0;">';
+			echo '<input type="checkbox" name="aoi_options[custom_js_pages][]" value="' . esc_attr( $page_key ) . '" ' . $checked . ' />';
+			echo ' ' . esc_html( $page_label );
+			echo '</label>';
+		}
+		echo '</fieldset>';
 		?>
-		<textarea id="discount_message_template" name="aoi_options[discount_message_template]" rows="8" class="large-text code" style="font-family: monospace;"><?php echo esc_textarea( $value ); ?></textarea>
 		<p class="description">
-			<?php esc_html_e( 'HTML template for discount message. Available placeholders:', 'affiliate-order-integration' ); ?>
-			• <code>{discount_amount}</code> - Formatted discount amount (e.g., "20.000 vnd")<br>
-			• <code>{discount_raw}</code> - discount_raw number (e.g., "10")<br>
-			• <code>{order_id}</code> - Order ID<br>
-			<strong><?php esc_html_e( 'Note:', 'affiliate-order-integration' ); ?></strong><br>
+			<?php esc_html_e( 'Select which pages should load your custom JavaScript code.', 'affiliate-order-integration' ); ?><br>
+			<strong><?php esc_html_e( 'Recommendation:', 'affiliate-order-integration' ); ?></strong> 
+			<?php esc_html_e( 'Enable only on pages where you want to display discounts to optimize performance.', 'affiliate-order-integration' ); ?>
 		</p>
 		<?php
 	}

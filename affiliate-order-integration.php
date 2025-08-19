@@ -129,6 +129,11 @@ class AffiliateOrderIntegration {
 		if ( is_admin() && class_exists( 'AOI_Admin' ) ) {
 			AOI_Admin::get_instance();
 		}
+
+		// Initialize Discount Display safely
+		if ( class_exists( 'AOI_Discount_Display' ) ) {
+			AOI_Discount_Display::get_instance();
+		}
 	}
 
 	/**

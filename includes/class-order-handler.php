@@ -65,6 +65,135 @@ class AOI_Order_Handler {
 	}
 
 	/**
+	 * Setup dynamic hooks based on order status setting
+	 *
+	 * @return void
+	 */
+	private function setup_dynamic_hooks() {
+		$options = get_option( 'aoi_options', array() );
+		$order_status = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
+
+		// Hook for sending order to affiliate based on status
+		if ( 'completed' === $order_status ) {
+			add_action( 'woocommerce_order_status_completed', array( $this, 'send_order_to_affiliate' ) );
+		} else {
+			add_action( 'woocommerce_order_status_processing', array( $this, 'maybe_send_order_to_affiliate' ) );
+		}
+
+		// Hook for applying affiliate discount during checkout
+		add_action( 'woocommerce_checkout_create_order', array( $this, 'apply_affiliate_discount_on_checkout' ), 20, 2 );
+		
+		// Backup hook - apply discount after order is created if not already applied
+		add_action( 'woocommerce_checkout_order_created', array( $this, 'ensure_affiliate_discount_applied' ), 10, 1 );
+		
+		// Hook for calculating cart fees (for affiliate discount display)
+		add_action( 'woocommerce_cart_calculate_fees', array( $this, 'calculate_affiliate_discount_fees' ) );
+
+		// Hook để xử lý khi status thay đổi KHỎI target status (rollback)
+		add_action( 'woocommerce_order_status_changed', array( $this, 'handle_status_rollback' ), 10, 4 );
+	}
+
+	/**
+	 * Apply affiliate discount when order is created
+	 *
+	 * @param WC_Order $order The order object.
+	 * @param array    $data Order data.
+	 * @return void
+	 */
+	public function apply_affiliate_discount_on_checkout( $order, $data ) {
+		if ( ! class_exists( 'AOI_Affiliate_API' ) ) {
+			return;
+		}
+
+		$api = new AOI_Affiliate_API();
+		$ctv_cookie = $api->get_ctv_cookie();
+		
+		if ( $ctv_cookie ) {
+			// Verify token first
+			$ctv_data = $api->verify_ctv_token( $ctv_cookie );
+			if ( ! $ctv_data || ! isset( $ctv_data['linkId'] ) ) {
+				return;
+			}
+			
+			// Get discount percentage from API using linkId
+			$discount_percent = $api->get_affiliate_discount( $ctv_data['linkId'] );
+			
+			if ( $discount_percent > 0 ) {
+				// Apply discount to order immediately
+				$api->apply_affiliate_discount( $order, $discount_percent );
+				
+				// Store CTV info in order meta for tracking
+				$order->update_meta_data( '_aoi_ctv_token', $ctv_cookie );
+				$order->update_meta_data( '_aoi_ctv_id', $ctv_data['id'] );
+				$order->update_meta_data( '_aoi_link_id', $ctv_data['linkId'] );
+				$order->update_meta_data( '_aoi_discount_percent', $discount_percent );
+				
+				// Clear any caches
+				if ( function_exists( 'wc_delete_shop_order_transients' ) ) {
+					wc_delete_shop_order_transients( $order->get_id() );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Backup function to ensure affiliate discount is applied
+	 * Called after order is created if main hook fails
+	 *
+	 * @param WC_Order $order The order object.
+	 * @return void
+	 */
+	public function ensure_affiliate_discount_applied( $order ) {
+		// Check if discount already applied
+		$has_discount = false;
+		foreach ( $order->get_fees() as $fee ) {
+			if ( $fee->get_name() === 'Affiliate Discount' ) {
+				$has_discount = true;
+				break;
+			}
+		}
+		
+		// If no discount found, try to apply it
+		if ( ! $has_discount ) {
+			$this->apply_affiliate_discount_on_checkout( $order, array() );
+		}
+		
+		// Force save order
+		$order->save();
+	}
+
+	/**
+	 * Calculate affiliate discount fees for cart
+	 *
+	 * @return void
+	 */
+	public function calculate_affiliate_discount_fees() {
+		if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+			return;
+		}
+
+		if ( ! class_exists( 'AOI_Affiliate_API' ) ) {
+			return;
+		}
+
+		$api = new AOI_Affiliate_API();
+		$ctv_cookie = $api->get_ctv_cookie();
+		
+		if ( $ctv_cookie ) {
+			// Get discount percentage from API
+			$discount_percent = $api->get_affiliate_discount( $ctv_cookie );
+			
+			if ( $discount_percent > 0 ) {
+				$cart_total = WC()->cart->get_subtotal();
+				$discount_amount = ( $cart_total * $discount_percent ) / 100;
+				
+				// Add negative fee (discount)
+				WC()->cart->add_fee( __( 'Affiliate Discount', 'affiliate-order-integration' ), -$discount_amount );
+			}
+		}
+	}
+
+	/**
 	 * Gửi order đến affiliate khi order completed
 	 *
 	 * @param int $order_id Order ID.
@@ -216,39 +345,6 @@ class AOI_Order_Handler {
 				deactivate_plugins( plugin_basename( AOI_PLUGIN_FILE ) );
 			}
 		}
-	}
-
-	/**
-	 * Setup hooks động dựa trên order status
-	 *
-	 * @return void
-	 */
-	private function setup_dynamic_hooks() {
-		// Lấy các tùy chọn từ database
-		$options = get_option( 'aoi_options', array());
-		$order_status = isset( $options['order_status'] ) ? $options['order_status'] : 'completed';
-
-		// Hook vào status được chọn để GỬI
-		switch ( $order_status ) {
-			case 'processing':
-				add_action('woocommerce_order_status_processing', array( $this, 'send_order_to_affiliate' ) );
-				break;
-			case 'on-hold': 
-				add_action('woocommerce_order_status_on-hold', array( $this, 'send_order_to_affiliate' ) );
-				break;
-			case 'completed':
-				add_action('woocommerce_order_status_completed', array( $this, 'send_order_to_affiliate' ) );
-				break;
-			case 'cancelled':
-				add_action('woocommerce_order_status_cancelled', array( $this, 'send_order_to_affiliate' ) );
-				break;
-			default:
-				error_log("AOI DEBUG: Unsupported order status '$order_status' for affiliate sending.");
-				break;
-		}
-
-		// Hook để xử lý khi status thay đổi KHỎI target status (rollback)
-		add_action('woocommerce_order_status_changed', array( $this, 'handle_status_rollback' ), 10, 4);
 	}
 
 	/**
