@@ -238,9 +238,6 @@ class AOI_Affiliate_API {
 		$total_before_discount = floatval( $order->get_subtotal() );
 		$discount_money = $total_before_discount * ( $percent_discount / 100 );
 
-		// Log để debug
-		$this->log_message("Order subtotal: $total_before_discount, Discount %: $percent_discount, Actual discount: $discount_money");
-
 		// Kiểm tra xem đã có discount chưa
 		$has_discount = false;
 		foreach ( $order->get_fees() as $fee ) {

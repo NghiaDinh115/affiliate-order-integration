@@ -238,7 +238,6 @@ class AOI_Order_Handler {
 	private function process_order( $order_id ) {
 		// Double check trước khi gọi WooCommerce functions
 		if ( ! function_exists( 'wc_get_order' ) ) {
-			error_log( 'AOI: WooCommerce not available when trying to process order ' . $order_id );
 			return false;
 		}
 		$order = wc_get_order( $order_id );

@@ -76,17 +76,15 @@ class AOI_Discount_Display {
         
         // Clear cache trước khi lấy options để đảm bảo data fresh
         wp_cache_delete( 'aoi_options', 'options' );
-        
-        // FORCE FRESH DATA - Clear all possible caches
         wp_cache_flush();
         delete_transient( 'aoi_options' );
         
-        // Lấy custom JS code từ admin giống logic trong custom_js_code_callback
+        // Lấy custom JS code từ admin
         $options = get_option( 'aoi_options', array() );
         
-        // Default code giống hệt trong admin (NO DOMContentLoaded wrapper)
+        // Default code (NO DOMContentLoaded wrapper)
         $default_code = '
-        // 🎨 Modern Discount Display Script with Cart Update Detection
+        // Modern Discount Display Script with Cart Update Detection
 
         // Validate và display initial discount data
         if (window.aoiDiscountData) {
@@ -173,238 +171,52 @@ class AOI_Discount_Display {
             }
         }';
         
-        // DEBUG: Kiểm tra chi tiết $options array - CHUYỂN SANG CONSOLE
-        $debug_info = array(
-            'options_keys' => array_keys( $options ),
-            'has_custom_js_code' => isset( $options['custom_js_code'] ),
-            'custom_js_code_type' => isset( $options['custom_js_code'] ) ? gettype( $options['custom_js_code'] ) : 'not_set',
-            'custom_js_code_length' => isset( $options['custom_js_code'] ) ? strlen( $options['custom_js_code'] ) : 0,
-            'custom_js_code_empty' => isset( $options['custom_js_code'] ) ? empty( $options['custom_js_code'] ) : true,
-            'custom_js_code_preview' => isset( $options['custom_js_code'] ) ? substr( $options['custom_js_code'], 0, 200 ) : 'not_set'
-        );
+
         
         // Force use custom code if it exists and is not empty
         if ( isset( $options['custom_js_code'] ) && ! empty( trim( $options['custom_js_code'] ) ) ) {
             $custom_js_code = $options['custom_js_code'];
-            $debug_info['using_custom_code'] = true;
         } else {
             $custom_js_code = $default_code;
-            $debug_info['using_custom_code'] = false;
         }
 
-        // Debug: Check what code we're actually using + add cache busting
+        // Cache busting with code hash
         $code_hash = md5( $custom_js_code );
-        $is_custom = isset( $options['custom_js_code'] );
-        $is_using_default = $custom_js_code === $default_code;
-        
-        $final_debug_info = array(
-            'is_custom' => $is_custom,
-            'is_using_default' => $is_using_default,
-            'code_length' => strlen( $custom_js_code ),
-            'code_hash' => $code_hash,
-            'contains_test_badge' => strpos( $custom_js_code, 'Test Badge' ) !== false,
-            'contains_affiliate_savings' => strpos( $custom_js_code, 'Affiliate Savings' ) !== false,
-            'code_preview' => substr( $custom_js_code, 0, 200 )
-        );
-
-        // Inject discount data vào window object
-        ?>
-        <script type="text/javascript">
-        // 🔍 CRITICAL DEBUG INFO - Options và Custom Code
-        console.log('🔍 AOI DEBUG - Options Analysis:', <?php echo wp_json_encode( $debug_info ); ?>);
-        console.log('🔍 AOI DEBUG - Final Code Analysis:', <?php echo wp_json_encode( $final_debug_info ); ?>);
-        
-        // Alert để debug nhanh (có thể tắt sau)
-        if (window.location.href.includes('debug=1')) {
-            alert('AOI DEBUG:\nUsing Custom Code: ' + <?php echo $debug_info['using_custom_code'] ? 'true' : 'false'; ?> + 
-                  '\nCustom Code Length: ' + <?php echo $debug_info['custom_js_code_length']; ?> + 
-                  '\nContains Test Badge: ' + <?php echo $final_debug_info['contains_test_badge'] ? 'true' : 'false'; ?>);
-        }
-        
-        // TEMP DEBUG: Add unique identifier to test
-        window.aoiDebugTimestamp = new Date().getTime();
-        console.log('🆔 AOI: Setting debug timestamp:', window.aoiDebugTimestamp);
-        
-        window.aoiDiscountData = <?php echo wp_json_encode( $discount_data ); ?>;
-        console.log('🎯 AOI Debug Info:', {
-            codeHash: '<?php echo esc_js( $code_hash ); ?>',
-            codeLength: <?php echo strlen( $custom_js_code ); ?>,
-            isCustom: <?php echo $is_custom ? 'true' : 'false'; ?>,
-            timestamp: new Date().toISOString(),
-            discountData: window.aoiDiscountData
-        });
-        
-        // TEST: Force test data for debugging
-        if (!window.aoiDiscountData.hasDiscount) {
-            console.log('🧪 AOI: No real discount data, creating test data...');
-            window.aoiDiscountData = {
-                hasDiscount: true,
-                discountPercent: 10,
-                discountAmount: 50000,
-                formattedAmount: "50.000₫",
-                linkId: "test123"
-            };
-            console.log('🧪 AOI: Test data created:', window.aoiDiscountData);
-        }
-        </script>
-        <?php
 
         // Inject custom JS code (always có code - default hoặc custom)
         ?>
+        <script type="text/javascript">
+        // Inject discount data vào global scope
+        window.aoiDiscountData = <?php echo json_encode( $discount_data ); ?>;
+        </script>
+        
         <script type="text/javascript" data-aoi-hash="<?php echo esc_attr( $code_hash ); ?>">
         
-        // Flag to prevent multiple executions (with cache busting)
-        console.log('🔧 AOI: Script execution check:', {
-            executed: window.aoiBadgeExecuted || false,
-            lastHash: window.aoiLastCodeHash || 'none',
-            currentHash: '<?php echo esc_js( $code_hash ); ?>',
-            shouldExecute: !window.aoiBadgeExecuted || window.aoiLastCodeHash !== '<?php echo esc_js( $code_hash ); ?>'
-        });
-        
+        // Flag to prevent multiple executions
         if (!window.aoiBadgeExecuted || window.aoiLastCodeHash !== '<?php echo esc_js( $code_hash ); ?>') {
-            console.log('✅ AOI: Executing badge script with hash:', '<?php echo esc_js( $code_hash ); ?>');
             window.aoiBadgeExecuted = true;
             window.aoiLastCodeHash = '<?php echo esc_js( $code_hash ); ?>';
             
             // Clear any existing badges if code changed
             const existingBadges = document.querySelectorAll('.aoi-modern-discount-badge');
-            console.log('🧹 AOI: Clearing existing badges:', existingBadges.length);
             existingBadges.forEach(badge => badge.remove());
             
             // Execute immediately if DOM ready, otherwise wait for DOMContentLoaded
             if (document.readyState === 'complete' || document.readyState === 'interactive') {
-                console.log('🚀 AOI: Executing immediately (DOM ready)');
-                console.log('🔍 AOI: About to execute custom code. Preview:', `<?php echo esc_js( substr( $custom_js_code, 0, 200 ) ); ?>...`);
-                console.log('🔍 AOI: Code contains Test Badge:', <?php echo strpos( $custom_js_code, 'Test Badge' ) !== false ? 'true' : 'false'; ?>);
-                
-                // Monitor badge creation
-                const originalCreateElement = document.createElement;
-                document.createElement = function(tagName) {
-                    const element = originalCreateElement.call(this, tagName);
-                    if (tagName.toLowerCase() === 'div') {
-                        const originalSetAttribute = element.setAttribute;
-                        element.setAttribute = function(name, value) {
-                            if (name === 'class' && value && value.includes('aoi-modern-discount-badge')) {
-                                console.log('🎯 AOI: Badge div created!');
-                            }
-                            return originalSetAttribute.call(this, name, value);
-                        };
-                        
-                        Object.defineProperty(element, 'className', {
-                            set: function(value) {
-                                if (value && value.includes('aoi-modern-discount-badge')) {
-                                    console.log('🎯 AOI: Badge className set:', value);
-                                }
-                                this.setAttribute('class', value);
-                            },
-                            get: function() {
-                                return this.getAttribute('class') || '';
-                            }
-                        });
-                    }
-                    return element;
-                };
-                
                 try {
-                    // CRITICAL DEBUG: Log exactly what's happening
-                    console.log('🔥 AOI: EXECUTING CUSTOM CODE NOW');
-                    console.log('🔥 AOI: window.aoiDiscountData:', window.aoiDiscountData);
-                    console.log('🔥 AOI: discount data hasDiscount:', window.aoiDiscountData ? window.aoiDiscountData.hasDiscount : 'no data');
-                    
                     <?php echo $custom_js_code; ?>
-                    console.log('✅ AOI: Badge script executed successfully');
-                    
-                    // IMMEDIATE check for badges
-                    console.log('🔍 AOI: IMMEDIATE badge check after execution');
-                    const immediateBadges = document.querySelectorAll('.aoi-modern-discount-badge');
-                    console.log('🔍 AOI: Found badges immediately:', immediateBadges.length);
-                    
-                    // Check what badges exist after execution
-                    setTimeout(() => {
-                        const badges = document.querySelectorAll('.aoi-modern-discount-badge');
-                        console.log('🔍 AOI: Badges found after execution:', badges.length);
-                        badges.forEach((badge, index) => {
-                            console.log(`🔍 AOI: Badge ${index} content:`, badge.innerHTML.substring(0, 200));
-                        });
-                        
-                        // If no badges, force create one for testing
-                        if (badges.length === 0) {
-                            console.log('🚨 AOI: NO BADGES FOUND - Creating test badge manually');
-                            const testBadge = document.createElement('div');
-                            testBadge.className = 'aoi-modern-discount-badge';
-                            testBadge.innerHTML = '<h4>MANUAL TEST BADGE</h4>';
-                            testBadge.style.cssText = `
-                                position: fixed;
-                                top: 120px;
-                                right: 30px;
-                                background: red;
-                                color: white;
-                                padding: 20px;
-                                z-index: 99999;
-                            `;
-                            document.body.appendChild(testBadge);
-                            console.log('🚨 AOI: Manual test badge created');
-                        }
-                    }, 1000);
                 } catch (error) {
-                    console.error('❌ AOI: Error in immediate JavaScript:', error);
-                    console.error('❌ AOI: Error stack:', error.stack);
+                    console.error('AOI Error:', error);
                 }
             } else {
-                console.log('⏳ AOI: Waiting for DOMContentLoaded');
                 document.addEventListener('DOMContentLoaded', function() {
-                    console.log('🚀 AOI: Executing on DOMContentLoaded');
-                    console.log('🔍 AOI: About to execute custom code. Preview:', `<?php echo esc_js( substr( $custom_js_code, 0, 200 ) ); ?>...`);
-                    console.log('🔍 AOI: Code contains Test Badge:', <?php echo strpos( $custom_js_code, 'Test Badge' ) !== false ? 'true' : 'false'; ?>);
                     try {
-                        // CRITICAL DEBUG: Log exactly what's happening  
-                        console.log('🔥 AOI: EXECUTING CUSTOM CODE NOW - DOMContentLoaded');
-                        console.log('🔥 AOI: window.aoiDiscountData:', window.aoiDiscountData);
-                        console.log('🔥 AOI: discount data hasDiscount:', window.aoiDiscountData ? window.aoiDiscountData.hasDiscount : 'no data');
-                        
                         <?php echo $custom_js_code; ?>
-                        console.log('✅ AOI: Badge script executed successfully on DOMContentLoaded');
-                        
-                        // IMMEDIATE check for badges
-                        console.log('🔍 AOI: IMMEDIATE badge check after DOMContentLoaded execution');
-                        const immediateBadges = document.querySelectorAll('.aoi-modern-discount-badge');
-                        console.log('🔍 AOI: Found badges immediately:', immediateBadges.length);
-                        
-                        // Check what badges exist after execution
-                        setTimeout(() => {
-                            const badges = document.querySelectorAll('.aoi-modern-discount-badge');
-                            console.log('🔍 AOI: Badges found after execution:', badges.length);
-                            badges.forEach((badge, index) => {
-                                console.log(`🔍 AOI: Badge ${index} content:`, badge.innerHTML.substring(0, 200));
-                            });
-                            
-                            // If no badges, force create one for testing
-                            if (badges.length === 0) {
-                                console.log('🚨 AOI: NO BADGES FOUND - Creating test badge manually');
-                                const testBadge = document.createElement('div');
-                                testBadge.className = 'aoi-modern-discount-badge';
-                                testBadge.innerHTML = '<h4>MANUAL TEST BADGE - DOMContentLoaded</h4>';
-                                testBadge.style.cssText = `
-                                    position: fixed;
-                                    top: 120px;
-                                    right: 30px;
-                                    background: red;
-                                    color: white;
-                                    padding: 20px;
-                                    z-index: 99999;
-                                `;
-                                document.body.appendChild(testBadge);
-                                console.log('🚨 AOI: Manual test badge created');
-                            }
-                        }, 1000);
                     } catch (error) {
-                        console.error('❌ AOI: Error in DOMContentLoaded JavaScript:', error);
-                        console.error('❌ AOI: Error stack:', error.stack);
+                        console.error('AOI Error:', error);
                     }
                 });
             }
-        } else {
-            console.log('🔧 AOI: Badge already executed with same code hash, skipping...');
         }
         </script>
         <?php
@@ -417,33 +229,27 @@ class AOI_Discount_Display {
      */
     private function should_load_on_current_page() {
         $options = get_option( 'aoi_options', array() );
-        $enabled_pages = isset( $options['custom_js_pages'] ) ? (array) $options['custom_js_pages'] : array( 'checkout', 'thankyou', 'cart' );
 
-        // Debug log current page
-        error_log( '🔍 AOI: Current URL: ' . $_SERVER['REQUEST_URI'] );
-        error_log( '🔍 AOI: Enabled pages: ' . implode( ', ', $enabled_pages ) );
+        $enabled_pages = array();
+        if( isset( $options['custom_js_pages'] ) && is_array( $options['custom_js_pages'] ) ) {
+            $enabled_pages = $options['custom_js_pages'];
+        } else if ( isset( $options['custom_js_pages'] ) && empty( $options['custom_js_pages'] ) ) {
+            // User đã save settings nhưng không chọn page nào => empty array
+            $enabled_pages = array();
+        } else {
+            // Chưa có settings => dùng default
+            $enabled_pages = array( 'checkout', 'thankyou', 'cart' );
+        }
         
         // Enhanced checkout detection - bao gồm order-review
         if ( in_array( 'checkout', $enabled_pages ) ) {
             $is_checkout_related = false;
             
-            // Standard checkout detection
-            if ( function_exists( 'is_checkout' ) && is_checkout() ) {
-                $is_checkout_related = true;
-                error_log( '✅ AOI: Standard checkout detected' );
-            }
-            
-            // URL-based detection cho order-review
-            $current_url = $_SERVER['REQUEST_URI'] ?? '';
-            if ( strpos( $current_url, 'checkout' ) !== false || strpos( $current_url, 'order-review' ) !== false ) {
-                $is_checkout_related = true;
-                error_log( '✅ AOI: Checkout URL detected: ' . $current_url );
-            }
-            
             // WooCommerce endpoint detection
             if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
                 $is_checkout_related = true;
-                error_log( '✅ AOI: Order-pay endpoint detected' );
+            } else {
+                $is_checkout_related = false;
             }
             
             if ( $is_checkout_related ) {
@@ -452,16 +258,13 @@ class AOI_Discount_Display {
         }
 
         if ( in_array( 'thankyou', $enabled_pages ) && function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
-            error_log( '✅ AOI: Thank you page detected' );
             return true;
         }
 
         if ( in_array( 'cart', $enabled_pages ) && function_exists( 'is_cart' ) && is_cart() ) {
-            error_log( '✅ AOI: Cart page detected' );
             return true;
         }
 
-        error_log( '❌ AOI: No matching page detected for current context' );
         return false;
     }
 
@@ -514,12 +317,30 @@ class AOI_Discount_Display {
                 return $default_data;
             }
 
-            // Tính chiết khấu dựa trên cart subtotal (nếu có WooCommerce)
+            // Tính chiết khấu dựa trên order total hoặc cart subtotal
             $discount_amount = 0;
-            if ( function_exists( 'WC' ) && WC()->cart ) {
-                $cart_subtotal = WC()->cart->get_cart_contents_total();
-                $discount_amount = $cart_subtotal * ( $discount_percent / 100 );
+            $order_total = 0;
+
+            // Trên thank you page, lấy từ order vừa được tạo
+            if ( function_exists( 'is_order_received_page') && is_order_received_page() ) {
+                global $wp;
+                if ( isset( $wp->query_vars['order-received'] ) ) {
+                    $order_id = intval( $wp->query_vars['order-received'] );
+                    $order = wc_get_order( $order_id );
+                    if ( $order ) {
+                        // Dùng subtotal để tránh tính discount 2 lần
+                        $order_total = $order->get_total();
+                        $subtotal = $order->get_subtotal();
+                        $order_total = $subtotal > 0 ? $subtotal : $order_total;
+                    }
+                }
             }
+            // Trên các page khác, dùng cart data
+            elseif ( function_exists( 'WC' ) && WC()->cart ) {
+                $order_total = WC()->cart->get_cart_contents_total();
+            }
+
+            $discount_amount = $order_total * ( $discount_percent / 100 );
 
             return array(
                 'hasDiscount'     => true,

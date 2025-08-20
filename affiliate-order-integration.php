@@ -100,6 +100,7 @@ class AffiliateOrderIntegration {
 			AOI_PLUGIN_PATH . 'includes/class-admin.php',
 			AOI_PLUGIN_PATH . 'includes/class-google-sheets.php',
 			AOI_PLUGIN_PATH . 'includes/class-discount-display.php',
+			AOI_PLUGIN_PATH . 'includes/class-frontend.php',
 		);
 		
 		foreach ( $required_files as $file ) {
@@ -134,6 +135,11 @@ class AffiliateOrderIntegration {
 		if ( class_exists( 'AOI_Discount_Display' ) ) {
 			AOI_Discount_Display::get_instance();
 		}
+
+		// Initialize Frontend safely - DISABLED to avoid conflict
+		// if ( ! is_admin() && class_exists( 'AOI_Frontend' ) ) {
+		//	AOI_Frontend::get_instance();
+		// }
 	}
 
 	/**
