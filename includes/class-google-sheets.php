@@ -30,7 +30,7 @@ class AOI_Google_Sheets {
         $options = get_option( 'aoi_options', array() );
         $this->google_form_url = isset( $options['google_form_url'] ) && !empty( $options['google_form_url'] ) 
             ? $options['google_form_url'] 
-            : 'https://docs.google.com/forms/d/e/1FAIpQLSc2ap8yeDs2nLZNAw6EKlZxt2w3imV8tfIVj7b-zDi1S1Fq4Q/viewform';
+            : 'https://docs.google.com/forms/u/2/d/e/1FAIpQLSc2ap8yeDs2nLZNAw6EKlZxt2w3imV8tfIVj7b-zDi1S1Fq4Q/formResponse';
         
         $this->init_hooks();
     }
@@ -93,15 +93,15 @@ class AOI_Google_Sheets {
 
         // Prepare data for Google Form
         $fields = array(
-            'entry.1678156202' => urlencode( implode( " / ", $system_buy ) ),
-            'entry.344700890' => urlencode( $order_id ),
-            'entry.1878428972' => urlencode( $order_billing_first_name . ' ' . $order_billing_last_name ),
-            'entry.1057942750' => urlencode( $address ),
-            'entry.2103726094' => urlencode( $order_billing_phone ),
-            'entry.802099282' => urlencode( $product_detail ),
-            'entry.1792964533' => urlencode( $customer_note ),
-            'entry.138451482' => urlencode( $order_payment_method_title ),
-            'entry.1973531549' => urlencode( $order_status )
+            'entry.446804691' => urlencode( implode( " / ", $system_buy ) ),
+            'entry.874701135' => urlencode( $order_id ),
+            'entry.195364413' => urlencode( $order_billing_first_name . ' ' . $order_billing_last_name ),
+            'entry.514412539' => urlencode( $address ),
+            'entry.232594094' => urlencode( $order_billing_phone ),
+            'entry.1452142591' => urlencode( $product_detail ),
+            // 'entry.1792964533' => urlencode( $customer_note ),
+            'entry.1706158428' => urlencode( $order_payment_method_title ),
+            'entry.994456795' => urlencode( $order_status )
         );
 
         // Send data to Google Sheets

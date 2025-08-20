@@ -39,11 +39,6 @@ class AOI_Admin {
 	 */
 	private function __construct() {
 		$this->init_hooks();
-		// Debug mode - uncomment để debug
-		add_action( 'admin_notices', array( $this, 'debug_admin_notices' ) );
-		
-		// Debug save process
-		add_action( 'updated_option', array( $this, 'debug_option_update' ), 10, 3 );
 	}
 
 	/**
@@ -892,38 +887,6 @@ class AOI_Admin {
 	}
 
 	/**
-	 * Debug admin notices để kiểm tra hooks
-	 */
-	public function debug_admin_notices() {
-		global $hook_suffix, $post_type;
-		if ( current_user_can( 'manage_options' ) ) {
-			echo '<div class="notice notice-info"><p>';
-			echo '<strong>AOI Debug:</strong> ';
-			echo 'Hook: ' . esc_html( $hook_suffix ?? 'none' );
-			echo ' | Post Type: ' . esc_html( $post_type ?? 'none' );
-			echo ' | URL: ' . esc_html( $_SERVER['REQUEST_URI'] ?? 'none' );
-			echo '</p></div>';
-		}
-	}
-
-	/**
-	 * Debug option updates to track when aoi_options is saved
-	 */
-	public function debug_option_update( $option_name, $old_value, $new_value ) {
-		if ( $option_name === 'aoi_options' ) {
-			error_log( '🔧 AOI OPTION UPDATE: aoi_options was saved!' );
-			error_log( '🔧 AOI: Old custom_js_code exists: ' . ( isset( $old_value['custom_js_code'] ) ? 'YES' : 'NO' ) );
-			error_log( '🔧 AOI: New custom_js_code exists: ' . ( isset( $new_value['custom_js_code'] ) ? 'YES' : 'NO' ) );
-			
-			if ( isset( $new_value['custom_js_code'] ) ) {
-				error_log( '🔧 AOI: New custom_js_code length: ' . strlen( $new_value['custom_js_code'] ) );
-				error_log( '🔧 AOI: New custom_js_code contains "Test Badge": ' . ( strpos( $new_value['custom_js_code'], 'Test Badge' ) !== false ? 'YES' : 'NO' ) );
-				error_log( '🔧 AOI: New custom_js_code preview: ' . substr( $new_value['custom_js_code'], 0, 150 ) . '...' );
-			}
-		}
-	}
-
-	/**
 	 * Setup order columns khi current_screen được load
 	 */
 	public function setup_order_columns_on_screen( $screen ) {
@@ -1014,11 +977,6 @@ class AOI_Admin {
 	 * @return array Sanitized options.
 	 */
 	public function sanitize_aoi_options( $input ) {
-		// Debug what's being submitted
-		error_log( '🔧 AOI SANITIZE: Function called with input keys: ' . implode( ', ', array_keys( $input ) ) );
-		if ( isset( $input['custom_js_code'] ) ) {
-			error_log( '🔧 AOI SANITIZE: custom_js_code input preview: ' . substr( $input['custom_js_code'], 0, 100 ) . '...' );
-		}
 		
 		$sanitized = array();
 
@@ -1050,17 +1008,8 @@ class AOI_Admin {
 		if ( isset( $input['custom_js_code'] ) ) {
 			$raw_code = $input['custom_js_code'];
 			$sanitized['custom_js_code'] = wp_unslash( $raw_code );
-			
-			// Debug logging for custom JS code save
-			error_log( '🔧 AOI SAVE DEBUG: Custom JS Code received' );
-			error_log( '🔧 AOI: Raw input length: ' . strlen( $raw_code ) );
-			error_log( '🔧 AOI: After wp_unslash length: ' . strlen( $sanitized['custom_js_code'] ) );
-			error_log( '🔧 AOI: Contains "Test Badge": ' . ( strpos( $sanitized['custom_js_code'], 'Test Badge' ) !== false ? 'YES' : 'NO' ) );
-			error_log( '🔧 AOI: Preview of saved code: ' . substr( $sanitized['custom_js_code'], 0, 200 ) . '...' );
-			error_log( '🔧 AOI: MD5 hash of saved code: ' . md5( $sanitized['custom_js_code'] ) );
 		} else {
 			$sanitized['custom_js_code'] = '';
-			error_log( '🔧 AOI SAVE DEBUG: No custom_js_code in input, setting to empty' );
 		}
 
 		// Handle custom_js_pages - array of allowed page types
@@ -1281,15 +1230,6 @@ class AOI_Admin {
 	// Kiểm tra xem đã có options chưa, nếu không thì sử dụng default_code
 	$options = get_option( 'aoi_options', array() );
 	
-	// DEBUG: So sánh với frontend
-	error_log( '🔧 AOI ADMIN: Loading options for textarea display' );
-	error_log( '🔧 AOI ADMIN: $options keys: ' . implode( ', ', array_keys( $options ) ) );
-	error_log( '🔧 AOI ADMIN: isset($options[\'custom_js_code\']): ' . ( isset( $options['custom_js_code'] ) ? 'TRUE' : 'FALSE' ) );
-	
-	if ( isset( $options['custom_js_code'] ) ) {
-		error_log( '🔧 AOI ADMIN: custom_js_code length: ' . strlen( $options['custom_js_code'] ) );
-		error_log( '🔧 AOI ADMIN: Contains "Test Badge": ' . ( strpos( $options['custom_js_code'], 'Test Badge' ) !== false ? 'YES' : 'NO' ) );
-	}
 
 	// Lấy options và gán default_code sau khi đã khai báo xong
 	$value = isset( $options['custom_js_code'] ) ? $options['custom_js_code'] : $default_code;
