@@ -98,7 +98,7 @@ class AOI_Discount_Display {
                 }
             }
             
-            if (window.aoiDiscountData.hasDiscount && isValidData) {                
+            if (window.aoiDiscountData.hasDiscount && isValidData) {       
                 // Create modern floating discount badge
                 const discountBadge = document.createElement("div");
                 discountBadge.className = "aoi-modern-discount-badge";
@@ -168,10 +168,7 @@ class AOI_Discount_Display {
                         setTimeout(() => discountBadge.remove(), 600);
                     }
                 }, 10000);
-            }
-        }';
-        
-
+            }';
         
         // Force use custom code if it exists and is not empty
         if ( isset( $options['custom_js_code'] ) && ! empty( trim( $options['custom_js_code'] ) ) ) {
@@ -241,15 +238,22 @@ class AOI_Discount_Display {
             $enabled_pages = array( 'checkout', 'thankyou', 'cart' );
         }
         
-        // Enhanced checkout detection - bao gồm order-review
+        // Checkout page detection (comprehensive)
         if ( in_array( 'checkout', $enabled_pages ) ) {
             $is_checkout_related = false;
             
-            // WooCommerce endpoint detection
+            // Multiple checkout detection methods
+            if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+                $is_checkout_related = true;
+            }
+            
             if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
                 $is_checkout_related = true;
-            } else {
-                $is_checkout_related = false;
+            }
+            
+            // Check for checkout in URL
+            if ( strpos( $_SERVER['REQUEST_URI'], '/checkout' ) !== false ) {
+                $is_checkout_related = true;
             }
             
             if ( $is_checkout_related ) {
@@ -257,12 +261,28 @@ class AOI_Discount_Display {
             }
         }
 
-        if ( in_array( 'thankyou', $enabled_pages ) && function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
-            return true;
+        // Thank you page detection
+        if ( in_array( 'thankyou', $enabled_pages ) ) {
+            if ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
+                return true;
+            }
+            
+            // Check for order-received in URL
+            if ( strpos( $_SERVER['REQUEST_URI'], '/order-received/' ) !== false ) {
+                return true;
+            }
         }
 
-        if ( in_array( 'cart', $enabled_pages ) && function_exists( 'is_cart' ) && is_cart() ) {
-            return true;
+        // Cart page detection
+        if ( in_array( 'cart', $enabled_pages ) ) {
+            if ( function_exists( 'is_cart' ) && is_cart() ) {
+                return true;
+            }
+            
+            // Check for cart in URL
+            if ( strpos( $_SERVER['REQUEST_URI'], '/cart' ) !== false ) {
+                return true;
+            }
         }
 
         return false;
