@@ -35,7 +35,7 @@ class AOI_Affiliate_API {
 	 *
 	 * @var string
 	 */
-	private $api_url = 'http://dev-aff-api.sellmate.cloud/api/v1/partnerSystem/orderCreate';
+	private $api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/orderCreate';
 
 	/**
 	 * Log file path
@@ -134,7 +134,7 @@ class AOI_Affiliate_API {
 				'quantity' => $item_data['quantity'],
 				'price'    => (string) $item_data['total'], // Chuyển về string để đúng định dạng
 				'link'     => $product ? $product->get_permalink() : '',
-				'sku'      => $product ? $product->get_sku() : '',
+				'pro_sku'  => $product ? $product->get_sku() : '',
 			);
 		}
 
@@ -182,7 +182,7 @@ class AOI_Affiliate_API {
  	 * @return float|null
 	 */
 	public function get_affiliate_discount( $link_id ) {
-		$api_url = 'http://dev-aff-api.sellmate.cloud/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
+		$api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
 
 		if ( empty( $link_id ) ) {
 			return null;
@@ -341,7 +341,7 @@ class AOI_Affiliate_API {
 					'quantity' => 1,
 					'price'    => '100000',
 					'link'     => 'https://example.com/test-product',
-					'sku'      => 'TEST-001',
+					'pro_sku'  => 'TEST-001',
 				),
 			),
 			'cuor_affiliate_id' => 2,
