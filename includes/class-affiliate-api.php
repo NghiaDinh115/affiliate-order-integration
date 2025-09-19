@@ -35,7 +35,7 @@ class AOI_Affiliate_API {
 	 *
 	 * @var string
 	 */
-	private $api_url = 'http://dev-aff-api.sellmate.cloud/api/v1/partnerSystem/orderCreate';
+	private $api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/orderCreate';
 
 	/**
 	 * Log file path
@@ -182,7 +182,7 @@ class AOI_Affiliate_API {
  	 * @return float|null
 	 */
 	public function get_affiliate_discount( $link_id ) {
-		$api_url = 'http://dev-aff-api.sellmate.cloud/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
+		$api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
 
 		if ( empty( $link_id ) ) {
 			return null;
