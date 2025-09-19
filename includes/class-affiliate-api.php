@@ -134,7 +134,7 @@ class AOI_Affiliate_API {
 				'quantity' => $item_data['quantity'],
 				'price'    => (string) $item_data['total'], // Chuyển về string để đúng định dạng
 				'link'     => $product ? $product->get_permalink() : '',
-				'sku'      => $product ? $product->get_sku() : '',
+				'pro_sku'  => $product ? $product->get_sku() : '',
 			);
 		}
 
@@ -341,7 +341,7 @@ class AOI_Affiliate_API {
 					'quantity' => 1,
 					'price'    => '100000',
 					'link'     => 'https://example.com/test-product',
-					'sku'      => 'TEST-001',
+					'pro_sku'  => 'TEST-001',
 				),
 			),
 			'cuor_affiliate_id' => 2,
