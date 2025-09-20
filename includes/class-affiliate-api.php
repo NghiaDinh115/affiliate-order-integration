@@ -32,10 +32,12 @@ class AOI_Affiliate_API {
 
 	/**
 	 * Affiliate API URL
+	 * domain_pro = 'https://aff-api.sellmate.vn'
+	 * domain_dev = 'http://dev-aff-api.sellmate.cloud'
 	 *
 	 * @var string
 	 */
-	private $api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/orderCreate';
+	private $domain = 'http://dev-aff-api.sellmate.cloud';
 
 	/**
 	 * Log file path
@@ -182,7 +184,7 @@ class AOI_Affiliate_API {
  	 * @return float|null
 	 */
 	public function get_affiliate_discount( $link_id ) {
-		$api_url = 'https://aff-api.sellmate.vn/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
+		$api_url = $this->domain.'/api/v1/partnerSystem/getDiscountByLinkId/' . $link_id;
 
 		if ( empty( $link_id ) ) {
 			return null;
@@ -279,6 +281,7 @@ class AOI_Affiliate_API {
 	 * @return array
 	 */
 	private function send_curl_request( $data, $order_id = null ) {
+		$api_url = $this->domain.'/api/v1/partnerSystem/orderCreate';
 		$json_data = wp_json_encode( $data );
 
 		$args = array(
@@ -291,7 +294,7 @@ class AOI_Affiliate_API {
 			'timeout' => 30,
 		);
 
-		$response = wp_remote_request( $this->api_url, $args );
+		$response = wp_remote_request( $api_url, $args );
 
 		if ( is_wp_error( $response ) ) {
 			$error_message = $response->get_error_message();
@@ -366,7 +369,7 @@ class AOI_Affiliate_API {
 			'timeout' => 15,
 		);
 
-		$response = wp_remote_request( $this->api_url, $args );
+		$response = wp_remote_request( $this->domain.'/api/v1/partnerSystem/orderCreate', $args );
 
 		if ( is_wp_error( $response ) ) {
 			$error_message = $response->get_error_message();
@@ -480,7 +483,7 @@ class AOI_Affiliate_API {
 			array(
 				'order_id'      => $order_id,
 				'status'        => $status,
-				'affiliate_url' => $this->api_url,
+				'affiliate_url' => $this->domain.'/api/v1/partnerSystem/orderCreate',
 				'response_data' => $response_body,
 				'sent_at'       => current_time( 'mysql' ),
 			),
