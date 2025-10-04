@@ -39,7 +39,7 @@ class AOI_Google_Sheets {
      * init hooks 
      */
     private function init_hooks() {
-        add_action( 'woocommerce_checkout_order_processed', array( $this, 'send_order_to_google_sheets' ) );
+        add_action( 'woocommerce_thankyou', array( $this, 'send_order_to_google_sheets' ) );
     }
 
     /**
@@ -120,11 +120,11 @@ class AOI_Google_Sheets {
         $table_name = $wpdb->prefix . 'aoi_affiliate_orders';
         
         $log = $wpdb->get_var( $wpdb->prepare( 
-            "SELECT status FROM $table_name WHERE order_id = %d AND status = 'sent'", 
-            $order_id 
+            "SELECT status FROM $table_name WHERE order_id = %d AND status = 'sent'",
+            $order_id
         ) );
         
-        return ! empty( $log );
+        return  !empty($log) ;
     }
 
     /**
@@ -145,7 +145,7 @@ class AOI_Google_Sheets {
                 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
             ),
             'body'      => $fields_string,
-            'timeout'   => 30,
+            'timeout'   => 60,
         );
 
         $response = wp_remote_request( $this->google_form_url, $arg );  
