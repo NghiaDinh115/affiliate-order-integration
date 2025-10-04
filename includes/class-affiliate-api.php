@@ -101,28 +101,34 @@ class AOI_Affiliate_API {
 		if ( ! file_exists( $log_dir ) ) {
 			wp_mkdir_p( $log_dir );
 		}
-
-		// Kiểm tra nếu cần lấy giá trị cookie
-		$ctv_value = $this->get_ctv_cookie();
-		if ( empty( $ctv_value ) ) {
-			$this->log_message( 'không tìm thấy token!' );
-			return array(
-				'success' => false,
-				'message' => __( 'CTV token not found', 'affiliate-order-integration' ),
-			);
+		$coupon_code = '';
+		if (!empty($_COOKIE['affiliate_coupon'])) {
+        	$coupon_code = sanitize_text_field($_COOKIE['affiliate_coupon']);
 		}
 
-		$ctv_data = $this->verify_ctv_token( $ctv_value );
-		if ( ! $ctv_data ) {
-			$this->log_message( 'token không hợp lệ!' );
-			return array(
-				'success' => false,
-				'message' => __( 'Invalid CTV token', 'affiliate-order-integration' ),
-			);
+		if(empty($coupon_code)){
+			// Kiểm tra nếu cần lấy giá trị cookie
+			$ctv_value = $this->get_ctv_cookie();
+			if ( empty( $ctv_value ) ) {
+				$this->log_message( 'không tìm thấy token!' );
+				return array(
+					'success' => false,
+					'message' => __( 'CTV token not found', 'affiliate-order-integration' ),
+				);
+			}
+
+			$ctv_data = $this->verify_ctv_token( $ctv_value );
+			if ( ! $ctv_data ) {
+				$this->log_message( 'token không hợp lệ!' );
+				return array(
+					'success' => false,
+					'message' => __( 'Invalid CTV token', 'affiliate-order-integration' ),
+				);
+			}
 		}
 
-		$ctv_id      = $ctv_data['id'];
-		$ctv_link_id = $ctv_data['linkId'] ?? 0;
+		$ctv_id      = $ctv_data['id'] ?? null;
+		$ctv_link_id = $ctv_data['linkId'] ?? null;
 
 		// Lấy danh sách sản phẩm từ đơn hàng
 		$cuor_products = array();
@@ -134,18 +140,19 @@ class AOI_Affiliate_API {
 			$cuor_products[] = array(
 				'name'     => $item_data['name'],
 				'quantity' => $item_data['quantity'],
-				'price'    => (string) $item_data['total'], // Chuyển về string để đúng định dạng
+				'price'    => (string) ((int) $item_data['subtotal'] / (int)$item_data['quantity']),
 				'link'     => $product ? $product->get_permalink() : '',
 				'pro_sku'  => $product ? $product->get_sku() : '',
 			);
+			$this->log_message( wp_json_encode($item_data) );
 		}
 
 		// Dữ liệu JSON gửi đi
 		$data = array(
 			'cuor_product'      => $cuor_products,
-			'cuor_affiliate_id' => $ctv_id,
+			'cuor_affiliate_id' => empty($coupon_code) ? $ctv_id : null,
 			'cuor_customer_id'  => $this->partner_id,
-			'link_id'           => $ctv_link_id,
+			'link_id'           => empty($coupon_code) ? $ctv_link_id : null,
 			'customer_infor'    => wp_json_encode( array(
 				'name'    => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
 				'phone'   => $order->get_billing_phone(),
@@ -154,6 +161,7 @@ class AOI_Affiliate_API {
 							$order->get_billing_state() . ', ' .
 							$order->get_billing_postcode() )
 			), JSON_UNESCAPED_UNICODE ),
+			'coupon_code'       => !empty($coupon_code) ? $coupon_code : null,
 		);
 
 		// Log request data
@@ -164,12 +172,31 @@ class AOI_Affiliate_API {
 
 		// Nếu gửi thành công, áp dụng discount
 		if ( $result['success'] && isset( $result['data'] ) ) {
-			$affiliate_order_id = is_array( $result['data'] ) && isset( $result['data']['id'] ) ? $result['data']['id'] : ( is_numeric( $result['data'] ) ? $result['data'] : null );
+			setcookie('affiliate_coupon', '', time() - 3600, '/');
+
+			$affiliate_order_id = is_array( $result['data'] ) && isset( $result['data']['data'] ) ? $result['data']['data'] : ( is_numeric( $result['data'] ) ? $result['data'] : null );
 
 			if ( $affiliate_order_id ) {
-				$percent_discount = $this->get_affiliate_discount( $ctv_link_id );
-				if ( $percent_discount ) {
-					$this->apply_affiliate_discount( $order, $percent_discount );
+				$api_url = $this->domain . '/api/v1/partnerSystem/getDiscountPercentageByOrderId/' . $affiliate_order_id;
+				$response = wp_remote_get( $api_url );
+
+				$discount_percent = null;
+
+				if ( ! is_wp_error( $response ) ) {
+					$body = wp_remote_retrieve_body( $response );
+					$data = json_decode( $body, true );
+
+					if ( isset( $data['data'] ) && is_numeric( $data['data'] ) ) {
+						$discount_percent = floatval( $data['data'] );
+					}
+				}
+				$this->log_message( $discount_percent);
+				if ( ! $discount_percent ) {
+					$discount_percent = $this->get_affiliate_discount( $ctv_link_id );
+				}
+
+				if ( $discount_percent ) {
+					$this->apply_affiliate_discount( $order, $discount_percent );
 				}
 			}
 		}
