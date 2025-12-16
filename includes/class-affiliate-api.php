@@ -382,6 +382,7 @@ class AOI_Affiliate_API {
 				'phone'   => '0123456789',
 				'address' => 'Test Address, Test City, Test State, 12345'
 			), JSON_UNESCAPED_UNICODE ),
+			'coupon_code' => null
 		);
 
 		$this->log_message( 'Testing connection with data: ' . wp_json_encode( $test_data ) );
