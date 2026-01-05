@@ -37,7 +37,7 @@ class AOI_Affiliate_API {
 	 *
 	 * @var string
 	 */
-	private $domain = 'http://dev-aff-api.sellmate.cloud';
+	private $domain = 'https://aff-api.sellmate.vn';
 
 	/**
 	 * Log file path
